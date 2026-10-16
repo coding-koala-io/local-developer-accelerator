@@ -1,0 +1,61 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verify tag and package version
+        run: node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('package.json')); if(process.env.GITHUB_REF_NAME !== 'v'+p.version) process.exit(1);"
+      - run: npm test
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Extract changelog notes
+        run: node src/release-notes.js
+      - name: Pack the CLI tarball and its checksum
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          FILE="coding-koala-io-accelerator-${VERSION}.tgz"
+          PACKED="$(npm pack --silent | tail -n 1)"
+          if [ "$PACKED" != "$FILE" ]; then echo "npm pack produced $PACKED, expected $FILE" >&2; exit 1; fi
+          sha256sum "$FILE" > SHA256SUMS
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+      - name: Create the GitHub release with the tarball
+        run: gh release create "$GITHUB_REF_NAME" "$FILE" SHA256SUMS --title "$GITHUB_REF_NAME" --notes-file release-notes.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+  publish:
+    needs: test
+    if: vars.NPM_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm publish --provenance --access public
