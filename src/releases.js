@@ -4,6 +4,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {randomUUID} from 'node:crypto';
 import {verifyRelease, versionPattern, compareVersions} from './verify.js';
+import {version as cliVersion} from './catalog.js';
 const exec = promisify(execFile);
 export function createReleases({paths, env = process.env, fetcher = fetch, runner = exec, now = Date.now, progress = () => {}}) {
   let tokenPromise;
@@ -15,7 +16,7 @@ export function createReleases({paths, env = process.env, fetcher = fetch, runne
   }
   async function request(url, binary = false) {
     const auth = await token();
-    const res = await fetcher(url, {headers: {'User-Agent': 'lda-cli/1.0.0', Accept: binary ? 'application/octet-stream' : 'application/vnd.github+json', ...(auth ? {Authorization: `Bearer ${auth}`} : {})}, signal: AbortSignal.timeout(120000)});
+    const res = await fetcher(url, {headers: {'User-Agent': `lda-cli/${cliVersion}`, Accept: binary ? 'application/octet-stream' : 'application/vnd.github+json', ...(auth ? {Authorization: `Bearer ${auth}`} : {})}, signal: AbortSignal.timeout(120000)});
     if (!res.ok) throw new Error(`Release request failed (HTTP ${res.status}). Check the release version and GitHub token.`);
     return res;
   }
