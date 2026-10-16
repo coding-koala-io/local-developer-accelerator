@@ -2,9 +2,10 @@
 // from the AST with fakes, or the real helper with -DryRun. Nothing elevates, changes a service or uses the network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {execFile} from 'node:child_process';
+import {execFile, execFileSync} from 'node:child_process';
 import {promisify} from 'node:util';
 import {readFile, writeFile, mkdir, readdir, rm} from 'node:fs/promises';
+import {realpathSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -38,6 +39,9 @@ async function protect(dir) {
 }
 // A file created by an elevated administrator (as on hosted CI runners) is owned by Administrators, not the
 // user: set the current user as owner explicitly so "owned by a non-admin" fixtures mean the same everywhere.
+// The helper canonicalises paths with [IO.Path]::GetFullPath, which expands 8.3 short names (a hosted runner's
+// TEMP is C:\Users\RUNNER~1\...): compare helper output with the long form of an existing fixture path.
+const longPath = p => realpathSync.native(p);
 async function ownByMe(file) {
   const me = (await exec(path.join(path.dirname(icacls), 'whoami.exe'), ['/user', '/fo', 'csv', '/nh'])).stdout.trim().split(',').pop().replaceAll('"', '');
   await exec(icacls, [file, '/setowner', `*${me}`]);
@@ -137,8 +141,9 @@ test('node.exe: the file and every ancestor up to the volume root must be admin-
   assert.match(out.ancestor, /nodejs: BUILTIN\\Users can modify it/);
   assert.deepEqual(out.seen, ['C:\\Program Files\\nodejs\\node.exe|True', 'C:\\Program Files\\nodejs|True'],'file first, then each folder, all requiring an admin owner');
   const walk = await ps(`${fns} $seen=New-Object Collections.Generic.List[string]; function Assert-SafeItem($Path,[switch]$AdminOwner){ $seen.Add($Path) }; Assert-TrustedExecutable ${q(file)}; @{seen=@($seen)} | ConvertTo-Json -Compress`);
-  assert.equal(walk.seen[0], file); assert.equal(walk.seen.at(-1), file.split('\\').slice(0, 2).join('\\'), 'walks to the top folder; the volume root is excluded');
-  assert.equal(walk.seen.length, file.split('\\').length - 1);
+  const longFile = longPath(file);
+  assert.equal(walk.seen[0], longFile); assert.equal(walk.seen.at(-1), longFile.split('\\').slice(0, 2).join('\\'), 'walks to the top folder; the volume root is excluded');
+  assert.equal(walk.seen.length, longFile.split('\\').length - 1);
   const source = await readFile(helper, 'utf8');
   assert.equal((source.match(/Get-Command node/g) || []).length, 1, 'node is resolved in one place'); assert.ok(source.includes('$nodePath=Get-NodePath'));
   assert.ok(source.includes('$system32 = [Environment]::SystemDirectory'));
@@ -171,7 +176,7 @@ test('runtime marker: written admin-only, reuse needs a matching marker, markerl
   assert.equal(out.realProtected, true); assert.deepEqual(out.realRules.sort(), ['S-1-5-18=FullControl', 'S-1-5-32-544=FullControl']); assert.equal(out.fileProtected, true);
   assert.match(out.other, /runtime folder of graph \(LdaGraph\), not assets \(LdaAssets\)/); assert.match(out.markerless, /without an LDA runtime marker\. Use lda adopt/);
   const marker = JSON.parse(await readFile(path.join(rt, '.lda-runtime.json'), 'utf8'));
-  assert.equal(marker.module, 'graph'); assert.equal(marker.serviceId, 'LdaGraph'); assert.equal(marker.canonicalPath.toLowerCase(), rt.toLowerCase()); assert.ok(Date.parse(marker.createdAt));
+  assert.equal(marker.module, 'graph'); assert.equal(marker.serviceId, 'LdaGraph'); assert.equal(marker.canonicalPath.toLowerCase(), longPath(rt).toLowerCase()); assert.ok(Date.parse(marker.createdAt));
 });
 
 test('purge requires a runtime marker matching the module and canonical path', {skip}, async t => {
@@ -214,6 +219,19 @@ test('engine and plan refuse overlapping data directories before elevation; the 
   assert.ok(buildPlan([op('graph', 'D:\\X\\Graph'), op('assets', 'D:\\X\\Assets')], {cache: f.paths.cache}));
   assert.equal(runtimesOverlap('D:\\X\\Graph', 'D:\\X\\Graph2'), false);
   await assertRuntimeLayout('D:\\rt', {list: async () => ['tenants.json', '.lda-runtime.json', 'data']});
+});
+
+test('overlap check treats short (8.3) and long spellings of the same folder as the same folder', {skip}, async t => {
+  const f = await fixture(t), dir = path.join(f.root, 'Long Runtime Folder'); await mkdir(dir);
+  const long = longPath(dir);
+  const short = execFileSync(path.join(path.dirname(icacls), 'cmd.exe'), ['/d', '/c', `for %I in ("${dir}") do @echo %~sI`], {windowsVerbatimArguments: true, encoding: 'utf8'}).trim();
+  if (!short || short.toLowerCase() === long.toLowerCase() || !short.includes('~')) {t.skip('8.3 short names are disabled on this volume'); return;}
+  assert.equal(runtimesOverlap(short, long), true, `${short} vs ${long}`);
+  assert.equal(runtimesOverlap(short.toUpperCase() + '\\', long.toLowerCase()), true, 'case and trailing separator do not matter');
+  assert.equal(runtimesOverlap(short, path.join(long, 'Graph')), true, 'a missing folder inside the long spelling is nested');
+  assert.equal(runtimesOverlap(path.join(short, 'Graph'), long), true);
+  assert.equal(runtimesOverlap(path.join(short, 'Graph'), path.join(long, 'Graph')), true, 'the missing rest is appended to the expanded prefix');
+  assert.equal(runtimesOverlap(path.join(short, 'Graph'), path.join(long, 'Assets')), false);
 });
 
 // ---- fix 5: adopt ----
@@ -544,7 +562,7 @@ test('a runtime folder that appears after the missing folders were listed is ref
   const f = await fixture(t), raced = path.join(f.root, 'raced'); await protect(f.root); await mkdir(raced); await grant(raced, '*S-1-5-32-545:(OI)(CI)M');
   const out = await ps(`${trustMe} ${load(['Full', 'Get-PrincipalName', 'Find-UntrustedWriter', 'Assert-SafeItem', 'New-RestrictedSecurity', 'New-SecureDirectory', 'New-RuntimeRoot'])}
     $acls=New-Object Collections.Generic.List[string]; function Set-RestrictedDirectoryAcl($Path,[switch]$Service){$acls.Add($Path)}; function Assert-RuntimeChain($r){}
-    $script:seen=0; function Test-Path([string]$LiteralPath){ if($LiteralPath -eq ${q(raced)}){ $script:seen++; return ($script:seen -gt 1) }; Microsoft.PowerShell.Management\\Test-Path -LiteralPath $LiteralPath }
+    $script:seen=0; function Test-Path([string]$LiteralPath){ if((Full $LiteralPath) -eq (Full ${q(raced)})){ $script:seen++; return ($script:seen -gt 1) }; Microsoft.PowerShell.Management\\Test-Path -LiteralPath $LiteralPath }
     ${err(`New-RuntimeRoot ${q(raced)}`, 'e')}
     ${err(`New-SecureDirectory ${q(raced)} 'Service' | Out-Null`, 'direct')}
     @{e=$e; direct=$direct; acls=@($acls); seen=$script:seen; usersStill=[bool](@((Get-Acl -LiteralPath ${q(raced)}).Access | Where-Object { $_.IdentityReference -like '*Users' }).Count)} | ConvertTo-Json -Compress`);
