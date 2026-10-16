@@ -1,0 +1,2 @@
+# Shell installers must keep LF endings even on Windows checkouts.
+*.sh text eol=lf

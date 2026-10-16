@@ -32,16 +32,22 @@ jobs:
           node-version: 24
       - name: Extract changelog notes
         run: node src/release-notes.js
-      - name: Pack the CLI tarball and its checksum
+      - name: Pack the CLI tarball, its stable copy, the installers and their checksums
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           FILE="coding-koala-io-accelerator-${VERSION}.tgz"
+          STABLE="coding-koala-io-accelerator.tgz"
           PACKED="$(npm pack --silent | tail -n 1)"
           if [ "$PACKED" != "$FILE" ]; then echo "npm pack produced $PACKED, expected $FILE" >&2; exit 1; fi
-          sha256sum "$FILE" > SHA256SUMS
+          # Unversioned copy (same bytes) so releases/latest/download/<name> URLs never change.
+          cp "$FILE" "$STABLE"
+          cmp "$FILE" "$STABLE"
+          sha256sum "$FILE" "$STABLE" install.ps1 install.sh > SHA256SUMS
+          cat SHA256SUMS
           echo "FILE=$FILE" >> "$GITHUB_ENV"
-      - name: Create the GitHub release with the tarball
-        run: gh release create "$GITHUB_REF_NAME" "$FILE" SHA256SUMS --title "$GITHUB_REF_NAME" --notes-file release-notes.txt
+          echo "STABLE=$STABLE" >> "$GITHUB_ENV"
+      - name: Create the GitHub release with the tarballs and installers
+        run: gh release create "$GITHUB_REF_NAME" "$FILE" "$STABLE" install.ps1 install.sh SHA256SUMS --title "$GITHUB_REF_NAME" --notes-file release-notes.txt
         env:
           GH_TOKEN: ${{ github.token }}
   publish:

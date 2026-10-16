@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0] - unreleased
+
+### Added
+- One-line installers that always take the latest release: `install.ps1` for Windows (`irm .../releases/latest/download/install.ps1 | iex`, PowerShell 5.1 and 7, no administrator rights) and `install.sh` for macOS/Linux (`curl -fsSL .../releases/latest/download/install.sh | sh`). They check Node.js 24+ and npm (never install Node.js), verify the tarball against `SHA256SUMS` before `npm i -g`, and accept `LDA_VERSION` and `GITHUB_TOKEN`.
+- Every release also carries an unversioned `coding-koala-io-accelerator.tgz` (same bytes as the versioned tarball) and both installers, all listed in `SHA256SUMS`, so `releases/latest/download/<name>` links never change.
+
+### Changed
+- `lda self-update` installs from the stable latest-release URL when the CLI is not on npm and the release carries the unversioned tarball.
+
 ## [1.0.1] - 2026-10-16
 
 ### Fixed
