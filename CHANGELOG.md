@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.1] - unreleased
+## [1.0.1] - 2026-10-16
 
 ### Fixed
 - Second and later elevated runs or dry runs failed with "Windows command failed (exit 1)" because re-locking the plans folder needed the audit privilege; permissions are now written without touching audit settings.
