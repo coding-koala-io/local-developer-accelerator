@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {main} from '../src/cli.js';
 import {version} from '../src/catalog.js';
-import {findLatestCli, tarballUrl, tarballName, cliRepo} from '../src/self-update.js';
+import {findLatestCli, tarballUrl, tarballName, cliRepo, stableTarballName, stableTarballUrl} from '../src/self-update.js';
 import {fixture, fakeEngine} from './helpers.js';
 const output = () => ({text: '', isTTY: false, write(s) {this.text += s;}});
 const json = (status, body) => ({ok: status >= 200 && status < 300, status, json: async () => body});
@@ -42,6 +42,23 @@ test('npm 404: falls back to the latest GitHub release tarball', async () => {
   assert.deepEqual(calls.map(c => c.url.startsWith('https://registry') ? 'npm' : c.url), ['npm', ghUrl]);
   assert.equal(calls[1].init.headers['User-Agent'], 'lda-cli/test');
   assert.ok(!('Authorization' in calls[1].init.headers), 'the public release lookup sends no token');
+});
+
+test('npm 404 and the release carries the unversioned tarball: prefer the stable latest URL', async () => {
+  assert.equal(stableTarballUrl, 'https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/coding-koala-io-accelerator.tgz');
+  const {fetcher} = fakeFetch([[npmUrl, () => json(404, {})], [ghUrl, () => json(200, release('1.1.0', [{name: stableTarballName}, {name: 'install.ps1'}, {name: 'install.sh'}]))]]);
+  assert.deepEqual(await findLatestCli({fetcher}), {source: 'github', latest: '1.1.0', spec: stableTarballUrl, command: `npm i -g ${stableTarballUrl}`});
+  const onlyStable = fakeFetch([[npmUrl, () => json(404, {})], [ghUrl, () => json(200, {tag_name: 'v1.1.0', assets: [{name: stableTarballName}, {name: 'SHA256SUMS'}]})]]);
+  assert.equal((await findLatestCli({fetcher: onlyStable.fetcher})).spec, stableTarballUrl);
+});
+
+test('lda self-update --yes installs from the stable latest URL when the release has it', async t => {
+  const {fetcher} = fakeFetch([[npmUrl, () => json(404, {})], [ghUrl, () => json(200, release('1.1.0', [{name: stableTarballName}]))]]);
+  const r = await run(t, ['self-update', '--yes'], {fetcher});
+  assert.equal(r.code, 0, r.stderr.text);
+  assert.ok(r.stdout.text.includes(`npm i -g ${stableTarballUrl}`));
+  if (process.platform === 'win32') assert.equal(r.npm[0][0], `npm i -g '${stableTarballUrl}'; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}`);
+  else assert.deepEqual(r.npm[0].slice(0, 2), ['npm', ['i', '-g', stableTarballUrl]]);
 });
 
 test('npm errors other than 404 do not fall back; GitHub failures and bad releases give plain errors', async () => {

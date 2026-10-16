@@ -18,17 +18,49 @@ foreground mode also works on macOS/Linux. Free non-production use under BSL 1.1
 
 ## Install and quick start
 
+Windows (PowerShell 5.1 or 7, no administrator rights needed):
+
 ```powershell
-npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/download/v1.0.0/coding-koala-io-accelerator-1.0.0.tgz
+irm https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.ps1 | iex
+```
+
+macOS / Linux:
+
+```sh
+curl -fsSL https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.sh | sh
+```
+
+The installers always take the latest release. They check for Node.js 24+ and npm
+(they never install Node.js; on Windows use `winget install OpenJS.NodeJS.LTS` or
+https://nodejs.org), download the release tarball and `SHA256SUMS`, refuse to
+install on a checksum mismatch, run `npm i -g` on the verified file and show
+`lda --version`. Options are environment variables: `LDA_VERSION=v1.1.0` pins a
+release, `GITHUB_TOKEN` avoids the GitHub API rate limit.
+
+Or with npm directly (always the latest release, no checksum step):
+
+```sh
+npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/coding-koala-io-accelerator.tgz
+```
+
+Once the CLI is published to npm: `npm i -g @coding-koala-io/accelerator`.
+
+Then:
+
+```powershell
 lda
 lda install graph assets
 lda status
 ```
 
-Once the CLI is published to npm, `npm i -g @coding-koala-io/accelerator` also
-works. `lda self-update` checks npm first and, while the package is not on npm,
-the latest GitHub release of this repository, then prints (or with `--yes` runs)
-the matching `npm i -g` command. Release tarballs come with a `SHA256SUMS` file.
+Already running the services from an older manual install? Use `lda adopt`.
+`lda tray` starts the tray icon.
+
+`lda self-update` checks npm first and, while the package is not on npm, the
+latest GitHub release of this repository (using the stable
+`releases/latest/download/coding-koala-io-accelerator.tgz` URL), then prints (or
+with `--yes` runs) the matching `npm i -g` command. Every release carries a
+`SHA256SUMS` file covering the tarballs and both installers.
 
 `accelerator` is an alias for `lda`. First run asks you to read and accept the notice.
 For automation, read `lda about`, then pass `--accept-notice` or set
