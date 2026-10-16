@@ -7,7 +7,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {powershell, failureDetail, redact} from '../src/process.js';
 import {createElevator} from '../src/elevate.js';
-import {fixture, winPs} from './helpers.js';
+import {fixture, winPs, isElevated} from './helpers.js';
 const helper = fileURLToPath(new URL('../elevated/lda-service.ps1', import.meta.url));
 const skip = process.platform !== 'win32';
 const clixml = '#< CLIXML\r\n<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><S S="Error">Set-Acl : The process does not possess the &apos;SeSecurityPrivilege&apos; privilege which is required for this operation._x000D__x000A_</S><S S="Error">At line:1 char:477_x000D__x000A_</S><S S="Error">+ ... Set-Acl -LiteralPath $d -AclObject $a_x000D__x000A_</S><S S="Error">    + CategoryInfo          : PermissionDenied: (C:\\x:String) [Set-Acl], PrivilegeNotHeldException_x000D__x000A_</S></Objs>';
@@ -115,8 +115,21 @@ test('real helper DryRun says "needs admin" for a data folder it cannot list ins
   await protect(runtime);
   try {
     const out = await dryRun(f, install(f, runtime)), full = await fullPath(runtime);
-    assert.ok(out.includes(`Would check the folders and files inside ${full} (service, data, logs, wrapper, XML, runtime marker; no junctions) (needs admin).`), out);
-    assert.ok(!out.includes('ERROR:'));
+    const tree = `folders and files inside ${full} (service, data, logs, wrapper, XML, runtime marker; no junctions)`;
+    assert.ok(!out.includes('ERROR:'), out); assert.ok(!out.includes('Windows command failed'), out);
+    if (!(await isElevated())) {
+      assert.ok(out.includes(`Would check the ${tree} (needs admin).`), out);
+      return;
+    }
+    // Elevated (hosted CI runners): Administrators can list the locked folder, so the helper performs the real
+    // checks instead of saying "needs admin". The folder's own checks ran, and the inside check either ran or was
+    // deferred only because a parent folder (the runner's writable profile) would stop the real run first.
+    assert.ok(!out.includes(`Would check the ${tree} (needs admin).`), out);
+    assert.ok(out.includes(`OK: owner and write access of ${full}.`), out);
+    assert.ok(out.includes(`OK: contents of ${full} are empty or a runtime layout.`), out);
+    const lines = out.split(/\r?\n/).map(l => l.trim()), at = lines.indexOf(`OK: contents of ${full} are empty or a runtime layout.`), next = lines[at + 1] || '';
+    assert.ok(next === `OK: ${tree}.` || next.startsWith('WOULD STOP: ') ||
+      (next === `Would check the ${tree} once the folders above are fixed.` && lines.slice(0, at).some(l => l.startsWith('WOULD STOP: '))), out);
   } finally {await unprotect(runtime);}
 });
 test('real helper DryRun reports a missing service as a stop, not a crash', {skip}, async t => {
