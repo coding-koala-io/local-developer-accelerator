@@ -176,7 +176,9 @@ function Set-RestrictedDirectoryAcl([string]$Path, [switch]$Service, [switch]$Co
     if ($Code) {$kind = 'Code'}
     $acl = New-RestrictedSecurity $kind
     $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    # SetAccessControl persists only the sections that were changed (owner and/or DACL), never the SACL. Set-Acl
+    # also tries the SACL on an already protected folder, which needs SeSecurityPrivilege and fails on a re-run.
+    (Get-Item -LiteralPath $Path -Force).SetAccessControl($acl)
 }
 function New-SecureDirectory([string]$Path, [string]$Kind) {
     # Created with its final protected DACL in one call, so it never exists with inherited permissive ACEs.
@@ -399,7 +401,8 @@ function Grant-LocalServiceAccess([string]$Path, [switch]$File) {
     $a = Get-Acl -LiteralPath $Path
     $inheritance = 'ContainerInherit,ObjectInherit'; if ($File) {$inheritance='None'}
     $a.SetAccessRule((New-Object Security.AccessControl.FileSystemAccessRule((New-Object Security.Principal.SecurityIdentifier('S-1-5-19')),'Modify',$inheritance,'None','Allow')))
-    Set-Acl -LiteralPath $Path -AclObject $a
+    # Only the DACL was changed, so only the DACL is written (see Set-RestrictedDirectoryAcl).
+    (Get-Item -LiteralPath $Path -Force).SetAccessControl($a)
 }
 function Reset-Inheritance([string]$Path) {
     & $icaclsExe $Path /reset /T /C /Q | Out-Null
@@ -865,6 +868,13 @@ function Remove-LegacyService($Legacy,$Mod) {
     foreach ($entry in $files) {Remove-Item -LiteralPath $entry.FullName -Force}
     $result.log+="Legacy wrapper files were backed up to $target and removed."
 }
+function Assert-LegacyAccount($Row, [string]$Id) {
+    $account=[string](Get-Field $Row 'StartName' '')
+    $accountSid=''; try {$accountSid=(New-Object Security.Principal.NTAccount($account)).Translate([Security.Principal.SecurityIdentifier]).Value} catch {}
+    if ($accountSid -ne $localServiceSid -and $account -notin @('NT AUTHORITY\LocalService','NT AUTHORITY\LOCAL SERVICE')) {
+        throw "Refusing to adopt: legacy service $Id runs as '$account', not NT AUTHORITY\LocalService. The new service runs as LocalService and adoption sets the data folder permissions for LocalService, so the legacy account could lose access to its own data. Switch the legacy service to LocalService first (sc config $Id obj= `"NT AUTHORITY\LocalService`"), check it still starts, then retry. Nothing was changed."
+    }
+}
 function Invoke-Adopt($Op) {
     $mod=$Modules[$Op.module]
     if (Get-ServiceRow $mod.ServiceId) {throw 'New service already exists; refusing to replace it.'}
@@ -872,11 +882,7 @@ function Invoke-Adopt($Op) {
     if (!$legacy.ContainsKey('Config')) {throw 'Legacy service XML is required.'}
     # Every check precedes the first change. Only a LocalService legacy service is adopted: adoption gives the
     # runtime folder the LocalService permission policy, which could cut any other account off from its data.
-    $account=[string](Get-Field $legacy.Row 'StartName' '')
-    $accountSid=''; try {$accountSid=(New-Object Security.Principal.NTAccount($account)).Translate([Security.Principal.SecurityIdentifier]).Value} catch {}
-    if ($accountSid -ne $localServiceSid -and $account -notin @('NT AUTHORITY\LocalService','NT AUTHORITY\LOCAL SERVICE')) {
-        throw "Refusing to adopt: legacy service $($legacy.Id) runs as '$account', not NT AUTHORITY\LocalService. The new service runs as LocalService and adoption sets the data folder permissions for LocalService, so the legacy account could lose access to its own data. Switch the legacy service to LocalService first (sc config $($legacy.Id) obj= `"NT AUTHORITY\LocalService`"), check it still starts, then retry. Nothing was changed."
-    }
+    Assert-LegacyAccount $legacy.Row $legacy.Id
     Assert-RuntimeTree $legacy.Root $legacy.Id
     Assert-NoRuntimeOverlap $legacy.Root $Op.module
     Assert-RuntimeIdentity $legacy.Root $Op.module $mod.ServiceId -LegacyAdopt
@@ -1045,6 +1051,108 @@ function Write-Result($Stream) {
         $Stream.SetLength(0); $Stream.Write($bytes,0,$bytes.Length); $Stream.Flush()
     } finally {$Stream.Dispose()}
 }
+# --- DryRun: the same checks, read-only and without admin. Nothing here changes anything. ---
+# A check a normal user cannot run is reported as "needs admin"; a check that would stop the real run is reported
+# with the fix. The real (elevated) run still performs every check itself.
+$script:dryStops=0
+function Get-UntrustedWriters($Acl, [switch]$AllowLocalService) {
+    # DryRun fix text only: every principal Find-UntrustedWriter would object to (same rules, all of them, not just
+    # the first), with whether its entry is inherited. The decision itself is always Assert-SafeItem.
+    foreach ($rule in @($Acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))) {
+        if ($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) {continue}
+        if (([int]$rule.FileSystemRights -band $writeMask) -eq 0) {continue}
+        $sid = $rule.IdentityReference.Value
+        if ($sid -in $adminSids) {continue}
+        if ($sid -eq $creatorOwnerSid -and ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly)) {continue}
+        if ($AllowLocalService -and $sid -eq $localServiceSid) {continue}
+        [pscustomobject]@{Sid=$sid; Inherited=[bool]$rule.IsInherited}
+    }
+}
+function Test-AccessDenied($ErrorRecord) {
+    $e=$ErrorRecord.Exception
+    while ($e) {
+        if ($e -is [UnauthorizedAccessException] -or $e -is [Security.AccessControl.PrivilegeNotHeldException]) {return $true}
+        $e=$e.InnerException
+    }
+    return ([string]$ErrorRecord.CategoryInfo.Category -eq 'PermissionDenied')
+}
+function Write-DryLine([string]$Line) { Write-Output $Line; $script:result.log+=$Line }
+function Get-PsLiteral([string]$Value) { return "'" + $Value.Replace("'","''") + "'" }
+function Get-DryRunFix([string]$Path, [string]$Message, [switch]$AllowLocalService) {
+    # The exact elevated command that clears an ownership or write-access refusal on $Path.
+    $q=Get-PsLiteral $Path
+    if ($Message -match 'is owned by') {return "Fix: make Administrators the owner of $Path. In an elevated PowerShell run: icacls $q /setowner '*S-1-5-32-544'"}
+    if ($Message -notmatch 'can modify it') {return ''}
+    $writers=@(Get-UntrustedWriters (Get-Acl -LiteralPath $Path) -AllowLocalService:$AllowLocalService)
+    if (!$writers.Count) {return ''}
+    $sids=@($writers | ForEach-Object {$_.Sid} | Select-Object -Unique)
+    $names=($sids | ForEach-Object {Get-PrincipalName $_}) -join ', '
+    # A folder your own account can change (your profile, for example) is the wrong place: never suggest removing it.
+    if ($sids -contains [Security.Principal.WindowsIdentity]::GetCurrent().User.Value) {
+        return "Fix: use a data folder that only administrators can change (for example under $env:ProgramData). $Path is writable by your own account ($names), so it cannot hold a service's data; do not change its permissions."
+    }
+    $commands=@()
+    # An inherited entry can only be removed after inheritance is turned off (the inherited entries are kept as copies).
+    if (@($writers | Where-Object {$_.Inherited}).Count) {$commands+="icacls $q /inheritance:d"}
+    $commands+="icacls $q /remove:g " + (($sids | ForEach-Object {"'*$_'"}) -join ' ')
+    $commands+="icacls $q /grant " + (($sids | ForEach-Object {"'*${_}:(OI)(CI)(RX)'"}) -join ' ')
+    return "Fix: remove write access for $names from $Path (read access is kept). In an elevated PowerShell run: " + ($commands -join '; ')
+}
+function Invoke-DryCheck([string]$What, [scriptblock]$Check, [string]$FixPath='', [switch]$AllowLocalService) {
+    try { & $Check; Write-DryLine "  OK: $What." }
+    catch {
+        if (Test-AccessDenied $_) { Write-DryLine "  Would check $What (needs admin)."; return }
+        $message=$_.Exception.Message; $script:dryStops++
+        Write-DryLine "  WOULD STOP: $message"
+        if ($FixPath) {
+            $fix=''; try {$fix=Get-DryRunFix $FixPath $message -AllowLocalService:$AllowLocalService} catch {}
+            if ($fix) {Write-DryLine "    $fix"}
+        }
+    }
+}
+function Test-DryReadable([string]$Path) {
+    try { [void](Get-Acl -LiteralPath $Path); [void](Get-ChildItem -LiteralPath $Path -Force); return $true } catch { return $false }
+}
+function Invoke-DryRunChecks($Op) {
+    $mod=$Modules[$Op.module]
+    Write-DryLine "Checks for $($Op.op) $($Op.module) (read-only, without admin):"
+    $root=''; $id=$mod.ServiceId
+    if ($Op.op -eq 'install') {
+        Invoke-DryCheck "no legacy service $($mod.LegacyServiceId)" { if (Get-ServiceRow $mod.LegacyServiceId) {throw "Legacy install found. Run lda adopt $($Op.module)."} }
+        Invoke-DryCheck "service $($mod.ServiceId) is not installed yet" { if (Get-ServiceRow $mod.ServiceId) {throw 'Service already installed. Use lda upgrade.'} }
+        $root=Full $Op.runtimeRoot
+    } elseif ($Op.op -eq 'adopt') {
+        Invoke-DryCheck "new service $($mod.ServiceId) does not exist yet" { if (Get-ServiceRow $mod.ServiceId) {throw 'New service already exists; refusing to replace it.'} }
+        $id=$Op.legacyServiceId
+        $row=Get-ServiceRow $id
+        if (!$row) { $script:dryStops++; Write-DryLine "  WOULD STOP: Service $id is not installed. Run lda install $($Op.module)."; return }
+        Invoke-DryCheck "legacy service $id runs as LocalService" { Assert-LegacyAccount $row $id }
+        $root=Get-ServiceRoot $id
+    } else {
+        $root=Get-ServiceRoot $id
+        if (!$root) { $script:dryStops++; Write-DryLine '  WOULD STOP: Service is not installed.'; return }
+    }
+    Invoke-DryCheck "data folder $root is an allowed location" { Assert-Runtime $root }
+    Invoke-DryCheck "data folder $root does not overlap another module" { Assert-NoRuntimeOverlap $root $Op.module }
+    $systemParents=@(Get-SystemParentFolders); $stopsBefore=$script:dryStops
+    foreach ($folder in @(Get-RuntimeAncestors $root)) {
+        if (!(Test-Path -LiteralPath $folder)) {continue}
+        if ($systemParents -contains $folder) { Invoke-DryCheck "owner of $folder" { Assert-SafeItem $folder -AdminOwner -OwnerOnly } $folder; continue }
+        Invoke-DryCheck "owner and write access of $folder" { Assert-SafeItem $folder } $folder
+    }
+    if (!(Test-Path -LiteralPath $root)) { Write-DryLine "  $root does not exist yet; it would be created with a fixed DACL."; }
+    else {
+        Invoke-DryCheck "owner and write access of $root" { Assert-SafeItem $root -AllowLocalService } $root -AllowLocalService
+        if (Test-DryReadable $root) {
+            if ($Op.op -eq 'install') { Invoke-DryCheck "contents of $root are empty or a runtime layout" { Assert-RuntimeLayout $root } }
+            if ($script:dryStops -gt $stopsBefore) { Write-DryLine "  Would check the folders and files inside $root (service, data, logs, wrapper, XML, runtime marker; no junctions) once the folders above are fixed." }
+            else { Invoke-DryCheck "folders and files inside $root (service, data, logs, wrapper, XML, runtime marker; no junctions)" { Assert-NoReparse $root -Recursive; Assert-RuntimeTree $root $id } }
+        } else {
+            Write-DryLine "  Would check the folders and files inside $root (service, data, logs, wrapper, XML, runtime marker; no junctions) (needs admin)."
+        }
+    }
+    if ($Op.op -eq 'install') { Invoke-DryCheck "port $($Op.port) is free" { Assert-Port @{Id=$mod.ServiceId; Port=[int]$Op.port} } }
+}
 $exitCode=1
 try {
     if (!$DryRun) {
@@ -1075,10 +1183,15 @@ try {
                 if ($op.op -eq 'rollback') {$line+='; switch to the committed previous version from versions.json; switch XML; restart; health; restore on failure'}
                 if ($op.op -eq 'uninstall') {$line+="; stop; unregister; safe-delete code; purge=$($op.purge) (runtime marker must match module and path; validate runtime layout and XML; no reparse points)"}
                 Write-Output $line; $result.log+=$line
+                Invoke-DryRunChecks $op
             } else {Invoke-Operation $op}
             $item.ok=$true; $item.message='Completed'
         } catch {$item.message=$_.Exception.Message; throw}
         finally {$result.operations+=,$item}
+    }
+    if ($DryRun -and $script:dryStops) {
+        $line="DRY RUN RESULT: the real run would stop at $($script:dryStops) check(s) above. Fix them, then retry."
+        Write-Output $line; $result.log+=$line
     }
     $result.ok=$true; $exitCode=0
 } catch {$result.log+=$_.Exception.Message; Write-Output "ERROR: $($_.Exception.Message)"}
