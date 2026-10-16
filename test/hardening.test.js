@@ -238,7 +238,7 @@ test('overlap check treats short (8.3) and long spellings of the same folder as 
 async function adopt(t, {fail = false, state = 'Running', legacyHealthy = true, stopNewFails = false, account = 'NT AUTHORITY\\LocalService', commitFails = false, stopLegacyTimesOut = false} = {}) {
   const f = await fixture(t), svc = path.join(f.root, 'service'); await mkdir(svc); await protect(f.root); await protect(svc);
   for (const [name, text] of [['OptimizelyGraphLocal.exe', 'wrapper-bytes'], ['OptimizelyGraphLocal.xml', '<service/>'], ['OptimizelyGraphLocal.wrapper.log', 'log']]) await writeFile(path.join(svc, name), text);
-  const out = await ps(`${load(['Full', 'Get-Field', 'Get-SecuritySnapshot', 'Restore-SecuritySnapshot', 'Invoke-Adopt', 'Undo-Adopt', 'Remove-LegacyService'])} $wrapperSha256='W'; $scExe='Z:\\never\\sc.exe'; $Modules=@{graph=@{ServiceId='LdaGraph'}}; $svc=${q(svc)}; $rtRoot=${q(f.root)}
+  const out = await ps(`${load(['Full', 'Get-Field', 'Get-SecuritySnapshot', 'Restore-SecuritySnapshot', 'Invoke-Adopt', 'Assert-LegacyAccount', 'Undo-Adopt', 'Remove-LegacyService'])} $wrapperSha256='W'; $scExe='Z:\\never\\sc.exe'; $Modules=@{graph=@{ServiceId='LdaGraph'}}; $svc=${q(svc)}; $rtRoot=${q(f.root)}
     $fail=$${fail}; $legacyHealthy=$${legacyHealthy}; $stopNewFails=$${stopNewFails}; $commitFails=$${commitFails}; $stopLegacyTimesOut=$${stopLegacyTimesOut}
     function Sddl($p){ (Get-Acl -LiteralPath $p).GetSecurityDescriptorSddlForm('Access, Owner') }; $before=@{root=(Sddl $rtRoot); svc=(Sddl $svc)}
     $events=New-Object Collections.Generic.List[string]; $script:registered=@{OptimizelyGraphLocal=$true}

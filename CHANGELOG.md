@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1] - 2026-10-16
+
+### Fixed
+- Second and later elevated runs or dry runs failed with "Windows command failed (exit 1)" because re-locking the plans folder needed the audit privilege; permissions are now written without touching audit settings.
+- Errors from Windows PowerShell now show the real reason (secrets removed) instead of a generic message.
+- `--dry-run` runs every check read-only, marks checks that need admin, and prints the exact fix for refusals (for example a parent folder that other users can modify).
+- Paths with 8.3 short names are compared in their long form.
+- The CLI version is read from package.json (single source of truth).
+
 ## [1.0.0] - 2026-10-16
 
 - Catalogue-driven LDA Local Graph and LDA Local Assets management.

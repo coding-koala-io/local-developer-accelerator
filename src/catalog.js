@@ -1,5 +1,8 @@
+import {createRequire} from 'node:module';
 export const suite = 'Local Developer Accelerator for Optimizely';
-export const version = '1.0.0';
+// The single source of the CLI version is package.json (npm always ships it); the release script bumps only that,
+// the lockfile, the licence and the changelog.
+export const version = createRequire(import.meta.url)('../package.json').version;
 export const wrapperSha256 = '05B82D46AD331CC16BDC00DE5C6332C1EF818DF8CEEFCD49C726553209B3A0DA';
 export const catalog = Object.freeze([
   {key: 'graph', product: 'LDA Local Graph', compatibleWith: 'Optimizely Graph', repo: 'coding-koala-io/lda-graph', port: 8082, serviceId: 'LdaGraph', legacyServiceIds: ['OptimizelyGraphLocal'], runtimeFolder: 'Graph', options: {memoryMb: {default: 8192, min: 1024, max: 65536}}},
