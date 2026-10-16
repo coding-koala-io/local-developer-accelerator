@@ -36,3 +36,10 @@ export const delay = ms => new Promise(r => setTimeout(r, ms));
 // (a pwsh 7 value would make 5.1 load PowerShell 7 core modules and fail).
 const execFileAsync = promisify(execFile);
 export const winPs = (args, opts = {}) => execFileAsync(windowsPowerShellPath(), args, {...opts, env: childEnv(opts.env || process.env)});
+// Whether this test process runs elevated (hosted CI runners do; a normal developer terminal does not). Checks the
+// Administrators SID (S-1-5-32-544), which is language-independent; under UAC a non-elevated token holds it deny-only,
+// so IsInRole is false there. Asked once per test file.
+let elevated;
+export const isElevated = () => elevated ??= process.platform !== 'win32' ? Promise.resolve(false)
+  : winPs(['-NoProfile', '-NonInteractive', '-Command', "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.SecurityIdentifier]'S-1-5-32-544')"])
+    .then(({stdout}) => {const v = stdout.trim(); if (v !== 'True' && v !== 'False') throw new Error(`Unexpected elevation check output: ${v}`); return v === 'True';});
