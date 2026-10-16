@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - unreleased
+## [1.1.0] - 2026-10-16
 
 ### Added
 - One-line installers that always take the latest release: `install.ps1` for Windows (`irm .../releases/latest/download/install.ps1 | iex`, PowerShell 5.1 and 7, no administrator rights) and `install.sh` for macOS/Linux (`curl -fsSL .../releases/latest/download/install.sh | sh`). They check Node.js 24+ and npm (never install Node.js), verify the tarball against `SHA256SUMS` before `npm i -g`, and accept `LDA_VERSION` and `GITHUB_TOKEN`.

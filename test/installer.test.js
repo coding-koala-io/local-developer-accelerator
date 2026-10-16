@@ -1,6 +1,8 @@
 // One-line installers (install.ps1, install.sh) and the release workflow that attaches them.
 // The end-to-end runs use a FAKE local releases API on 127.0.0.1, a real `npm pack` of this repo,
-// a temporary npm prefix and npm in offline mode, so nothing global changes and nothing leaves the machine.
+// a temporary npm prefix and npm in prefer-offline mode, so nothing global changes. The CLI tarball and the
+// releases API never leave the machine; npm still resolves the CLI's registry dependencies (chalk, ink, ...),
+// from its cache when it has them and from the registry otherwise (a fresh CI runner has no registry metadata cached).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -112,7 +114,7 @@ async function runPs1(base, env, shell = windowsPowerShellPath()) {
   } catch (e) {return `${e.stdout}${e.stderr}${e.message}`;}
 }
 const baseEnv = (dir, base, extra = {}) => {
-  const env = {...process.env, LDA_INSTALL_API: `${base}/repos/x`, npm_config_prefix: path.join(dir, 'prefix'), npm_config_cache: undefined, npm_config_offline: 'true', npm_config_update_notifier: 'false', ...extra};
+  const env = {...process.env, LDA_INSTALL_API: `${base}/repos/x`, npm_config_prefix: path.join(dir, 'prefix'), npm_config_cache: undefined, npm_config_offline: undefined, npm_config_prefer_offline: 'true', npm_config_update_notifier: 'false', ...extra};
   for (const k of Object.keys(env)) if (env[k] === undefined || /^(LDA_VERSION|GITHUB_TOKEN)$/i.test(k) && !(k in extra)) delete env[k];
   return env;
 };
