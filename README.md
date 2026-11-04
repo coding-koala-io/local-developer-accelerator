@@ -1,12 +1,12 @@
-> **Development and research use only. Never use in production.**
-> Local Developer Accelerator for Optimizely runs local stand-ins for Optimizely cloud services on a single
+> **Development and research use only. Not designed or tested for production use.**
+> Local Developer Accelerator (LDA), compatible with Optimizely CMS 13, runs local stand-ins for Optimizely cloud services on a single
 > developer machine. It is not a replacement for any Optimizely service: its
 > behaviour, limits and performance differ, so always test against the real services
 > before release. Keep it bound to localhost and never expose it to a network.
 > Provided "as is", without warranty of any kind. Its data folder holds copies of
 > your CMS content, including drafts; treat it as sensitive. No telemetry. See
 > PRIVACY.md and LEGAL-NOTICE.md.
-> Local Developer Accelerator for Optimizely is an independent project, not affiliated with, sponsored by or
+> Local Developer Accelerator (LDA), compatible with Optimizely CMS 13, is an independent project, not affiliated with, sponsored by or
 > endorsed by Optimizely. Optimizely® and the Optimizely product names are trademarks
 > or registered trademarks of Optimizely North America Inc. or its related entities.
 

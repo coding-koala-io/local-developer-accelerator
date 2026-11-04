@@ -4,8 +4,8 @@ No publish occurs during normal CLI tests or local development.
 
 1. Work from develop using feature/* branches; main contains released versions.
 2. Start a release with `git flow release start X.Y.Z`. Update package.json,
-   package-lock.json, src/catalog.js CLI version, CHANGELOG.md and licence parameters.
-   The licence change date is four years after that release.
+   package-lock.json and CHANGELOG.md (the CLI reads its version from package.json).
+   LICENSE.md is the standard Apache License 2.0 text and is not changed for a release.
 3. Run `npm ci` and `npm test` on Node 24, Windows and Linux. Review the packaged
    file list and audit repository history for prohibited vendor/research material.
 4. Finish with `git flow release finish X.Y.Z`, then push main, develop and tags.

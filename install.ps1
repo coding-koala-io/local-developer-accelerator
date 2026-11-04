@@ -1,4 +1,4 @@
-# Local Developer Accelerator for Optimizely - one-line installer for Windows.
+# Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 - one-line installer for Windows.
 #   irm https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.ps1 | iex
 # Options (environment variables, because a piped script takes no parameters):
 #   LDA_VERSION   pin a release, for example v1.1.0 (default: the latest release)
@@ -27,8 +27,8 @@
     }
 
     Write-Host ''
-    Write-Host 'Local Developer Accelerator for Optimizely - by Coding Koala' -ForegroundColor Cyan
-    Write-Host 'Development and research use only. Never use in production.' -ForegroundColor Yellow
+    Write-Host 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 - by Coding Koala' -ForegroundColor Cyan
+    Write-Host 'Development and research use only. Not designed or tested for production use.' -ForegroundColor Yellow
     Write-Host '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.'
     Write-Host '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.'
     Write-Host '- Independent project; not affiliated with, sponsored by or endorsed by Optimizely.'

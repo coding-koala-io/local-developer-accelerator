@@ -1,5 +1,5 @@
 import {createRequire} from 'node:module';
-export const suite = 'Local Developer Accelerator for Optimizely';
+export const suite = 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13';
 // The single source of the CLI version is package.json (npm always ships it); the release script bumps only that,
 // the lockfile, the licence and the changelog.
 export const version = createRequire(import.meta.url)('../package.json').version;

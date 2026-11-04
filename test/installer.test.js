@@ -43,7 +43,7 @@ test('install.ps1 is safe to pipe to iex and contains the required checks', asyn
   assert.ok(s.trimStart().replace(/^(#.*\r?\n)+/, '').startsWith('& {'), 'runs in its own scope');
   for (const text of ['SecurityProtocolType]::Tls12', 'Get-FileHash -Algorithm SHA256', 'Checksum mismatch', "-lt 24", 'winget install OpenJS.NodeJS.LTS', 'https://nodejs.org', 'npm.cmd',
     '/releases/latest', '/releases/tags/', '$env:LDA_VERSION', '$env:GITHUB_TOKEN', 'SHA256SUMS', '--version', 'lda install graph assets', 'lda adopt', 'lda tray',
-    'Never use in production', 'No telemetry', 'not affiliated'])
+    'Not designed or tested for production use.', 'No telemetry', 'not affiliated'])
     assert.ok(s.includes(text), text);
   assert.ok(!/RunAs|winget install(?! OpenJS\.NodeJS\.LTS)/.test(s), 'never elevates and never installs Node.js itself');
   assert.ok(s.indexOf('Checksum mismatch') < s.indexOf(' i -g '), 'verifies before npm install');
@@ -52,7 +52,7 @@ test('install.ps1 is safe to pipe to iex and contains the required checks', asyn
 test('install.sh contains the required checks', async () => {
   const s = await readFile(sh, 'utf8');
   for (const text of ['set -eu', 'sha256sum', 'shasum -a 256', 'Checksum mismatch', '-ge 24', 'https://nodejs.org', '/releases/latest', '/releases/tags/', 'LDA_VERSION', 'GITHUB_TOKEN',
-    'SHA256SUMS', '--version', 'lda install graph assets', 'lda adopt', 'Never use in production', 'No telemetry', 'not affiliated'])
+    'SHA256SUMS', '--version', 'lda install graph assets', 'lda adopt', 'Not designed or tested for production use.', 'No telemetry', 'not affiliated'])
     assert.ok(s.includes(text), text);
   assert.ok(!/\bsudo npm\b|apt-get install|brew install node &&/.test(s), 'never installs Node.js or uses sudo itself');
   assert.ok(s.indexOf('Checksum mismatch') < s.indexOf('npm i -g'), 'verifies before npm install');
@@ -122,7 +122,7 @@ const baseEnv = (dir, base, extra = {}) => {
 test('install.ps1 end to end: fake API, real tarball, temporary npm prefix', {skip: process.platform !== 'win32', timeout: 300000}, async t => {
   const f = await packFixture(t), api = await fakeReleases(t, f);
   const out = await runPs1(api.base, baseEnv(f.dir, api.base, {LDA_VERSION: pkg.version, GITHUB_TOKEN: 'synthetic-token'}));
-  assert.match(out, /Never use in production/);
+  assert.match(out, /Not designed or tested for production use/);
   assert.match(out, /SHA-256 verified/, out);
   assert.ok(out.includes(`Installed lda ${pkg.version}.`), out);
   assert.match(out, /lda install graph assets/);

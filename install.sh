@@ -1,5 +1,5 @@
 #!/bin/sh
-# Local Developer Accelerator for Optimizely - one-line installer for macOS and Linux.
+# Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 - one-line installer for macOS and Linux.
 #   curl -fsSL https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.sh | sh
 # Options (environment variables):
 #   LDA_VERSION      pin a release, for example v1.1.0 (default: the latest release)
@@ -19,8 +19,8 @@ fail() {
   exit 1
 }
 
-printf '\nLocal Developer Accelerator for Optimizely - by Coding Koala\n'
-printf 'Development and research use only. Never use in production.\n'
+printf '\nLocal Developer Accelerator (LDA), compatible with Optimizely CMS 13 - by Coding Koala\n'
+printf 'Development and research use only. Not designed or tested for production use.\n'
 printf -- '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.\n'
 printf -- '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.\n'
 printf -- '- Independent project; not affiliated with, sponsored by or endorsed by Optimizely.\n\n'

@@ -1,6 +1,6 @@
 # Rights-holder concerns, takedown and contact
 
-Local Developer Accelerator for Optimizely is published by Coding Koalas Pty Ltd (ACN 668 775 433). We respect the intellectual property of Optimizely and everyone else. If you believe this project infringes your rights, breaches an agreement or is misleading, please tell us. We will act in good faith and promptly.
+Local Developer Accelerator (LDA), compatible with Optimizely CMS 13, is published by Coding Koalas Pty Ltd (ACN 668 775 433). We respect the intellectual property of Optimizely and everyone else. If you believe this project infringes your rights, breaches an agreement or is misleading, please tell us. We will act in good faith and promptly. Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 
 ## Contact
 - Email: legal@codingkoala.io

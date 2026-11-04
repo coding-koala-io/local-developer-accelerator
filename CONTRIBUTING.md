@@ -1,4 +1,6 @@
-# Contributing to Local Developer Accelerator for Optimizely
+# Contributing to Local Developer Accelerator (LDA), compatible with Optimizely CMS 13
+
+Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 
 Thank you for helping. The `lda` CLI is published by Coding Koalas Pty Ltd (ACN 668 775 433). Please read the legal rules below before you open a pull request.
 

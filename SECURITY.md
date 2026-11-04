@@ -1,6 +1,6 @@
 # Security policy
 
-Local Developer Accelerator for Optimizely (the `lda` CLI) is a development-only tool, published by Coding Koalas Pty Ltd (ACN 668 775 433). The CLI and the local services it installs are meant for a single developer machine, bound to that machine (127.0.0.1, the default). Never expose them to a network others can reach, and never point a shared, staging or production site at them: they are not built to resist attackers.
+Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 (the `lda` CLI), is a development-only tool, published by Coding Koalas Pty Ltd (ACN 668 775 433). The CLI and the local services it installs are meant for a single developer machine, bound to that machine (127.0.0.1, the default). Never expose them to a network others can reach, and never point a shared, staging or production site at them: they are not built to resist attackers. Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 
 ## Reporting a vulnerability
 
