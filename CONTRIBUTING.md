@@ -28,7 +28,7 @@ In the pull request, say briefly where any compatibility behaviour comes from (f
 Every commit must be signed off (`git commit -s`), certifying the Developer Certificate of Origin 1.1 (https://developercertificate.org/): your contribution is original or you have the rights needed to submit it.
 
 ### Licence of contributions
-Contributions are licensed to you and us under the same licence as this repository (Business Source License 1.1). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.
+Contributions are licensed to you and us under the same licence as this repository (Apache License 2.0). By contributing you also grant Coding Koalas Pty Ltd a perpetual, worldwide, royalty-free licence to use, modify and relicense your contribution, including under other licence terms.
 
 Report legal concerns as described in TAKEDOWN-AND-CONTACT.md, not in public issues. Maintainers may remove any contribution at any time if they believe it breaks these rules.
 

@@ -22,7 +22,7 @@ fail() {
 printf '\nLocal Developer Accelerator for Optimizely - by Coding Koala\n'
 printf 'Development and research use only. Never use in production.\n'
 printf -- '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.\n'
-printf -- '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: BSL 1.1.\n'
+printf -- '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.\n'
 printf -- '- Independent project; not affiliated with, sponsored by or endorsed by Optimizely.\n\n'
 
 # 1. Tools: curl, Node.js 24+, npm, a SHA-256 tool. Node.js is never installed automatically.

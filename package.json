@@ -1,7 +1,7 @@
 {
   "name": "@coding-koala-io/accelerator",
   "version": "1.1.0",
-  "description": "Local Developer Accelerator for Optimizely — by Coding Koala. Install, upgrade and manage local development stand-ins compatible with Optimizely CMS 13 services. Development use only.",
+  "description": "Local Developer Accelerator — by Coding Koala. Install, upgrade and manage local development stand-ins compatible with Optimizely CMS 13 services. Development use only.",
   "type": "module",
   "bin": {
     "lda": "bin/lda.js",
@@ -10,7 +10,7 @@
   "engines": {
     "node": ">=24"
   },
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "author": "Coding Koalas Pty Ltd",
   "repository": "github:coding-koala-io/local-developer-accelerator",
   "homepage": "https://github.com/coding-koala-io/local-developer-accelerator#readme",
@@ -20,7 +20,8 @@
     "elevated",
     "tray",
     "docs",
-    "*.md"
+    "*.md",
+    "NOTICE"
   ],
   "scripts": {
     "test": "node --test test/*.test.js"

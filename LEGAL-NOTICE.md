@@ -7,7 +7,7 @@ This software is published by Coding Koalas Pty Ltd (ACN 668 775 433), Sydney, N
 
 ## Not affiliated with Optimizely
 This project is independent. It is **not** made, sponsored, endorsed, reviewed, certified or supported by Optimizely or any company in the Optimizely group.
-"Optimizely", "Optimizely Graph", "Opal", "Opti ID", "Optimizely Data Platform", "Feature Experimentation", "Episerver" and related names are trademarks of their owner. We use them only to describe what this software is compatible with. Their use does not imply any relationship or approval.
+"Optimizely", "Optimizely Graph", "Opti ID", "Optimizely Data Platform", "Feature Experimentation", "Episerver" and related names are trademarks of their owner. We use them only to describe what this software is compatible with. Their use does not imply any relationship or approval.
 This software contains no Optimizely source code, binaries, user interface, logos or documentation.
 
 ## What it is for: interoperability during development
@@ -17,7 +17,7 @@ This CLI manages independent local development stand-ins for certain cloud servi
 - Run it only on a single developer machine you control, bound to that machine (the default).
 - Do **not** run it in production, staging, shared, test or customer environments, or on any network others can reach.
 - Do **not** offer it as a hosted service, and do **not** use it in place of an Optimizely subscription for any live or customer-facing site.
-- Some components accept credentials without checking them, and the local Opal component issues sign-in tokens to anyone who can reach it. **Pointing any shared or production site at it can give strangers administrator access to that site.**
+- Some components accept credentials without checking them. **Pointing any shared or production site at it can give strangers administrator access to that site.**
 - Always test against the real Optimizely services before you release.
 
 ## Your agreements with Optimizely are your responsibility
@@ -36,7 +36,7 @@ To the extent the law allows, we are not liable for any loss or damage of any ki
 Nothing in this notice or the licence excludes, restricts or modifies any right or remedy, or any guarantee, warranty or other term or condition, implied or imposed by law (including the Australian Consumer Law) that cannot lawfully be excluded or limited. Where liability can be limited but not excluded, it is limited, at our option, to supplying the software again or paying the cost of having it supplied again.
 
 ## Licence
-Business Source License 1.1: free for development, testing, demos and other non-production use by anyone, including companies. Production use is not permitted. Version 1.0.0 converts to Apache License 2.0 on 2030-10-16. See LICENSE.md. If this notice and the licence conflict, the licence governs the copyright grant, and this notice governs everything else.
+Apache License 2.0. See LICENSE.md and NOTICE. Versions up to and including 1.1.0 remain under the Business Source License 1.1. It is still a development tool: not for production use, and provided "as is". If this notice and the licence conflict, the licence governs the copyright grant, and this notice governs everything else.
 
 ## Concerns
 If you believe this project infringes your rights, see TAKEDOWN-AND-CONTACT.md.

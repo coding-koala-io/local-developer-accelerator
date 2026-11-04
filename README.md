@@ -10,11 +10,14 @@
 > endorsed by Optimizely. Optimizely® and the Optimizely product names are trademarks
 > or registered trademarks of Optimizely North America Inc. or its related entities.
 
-# Local Developer Accelerator for Optimizely
+# Local Developer Accelerator
+
+Compatible with Optimizely CMS 13. Not affiliated with or endorsed by Optimizely.
 
 By Coding Koala · published by Coding Koalas Pty Ltd (ACN 668 775 433).
 Node 24 or newer. Windows services, optional tray and a loopback-only hub;
-foreground mode also works on macOS/Linux. Free non-production use under BSL 1.1.
+foreground mode also works on macOS/Linux. Open source under the Apache License 2.0;
+still a development tool, not for production use.
 
 ## Install and quick start
 
@@ -218,8 +221,8 @@ No telemetry or analytics. External connections are release/update requests to
 GitHub, optional WinSW download during install, and npm (or the GitHub release,
 while the CLI is not on npm) for self-update. See
 [Privacy](PRIVACY.md), [Legal notice](LEGAL-NOTICE.md), [Licence](LICENSE.md).
-BSL 1.1 permits non-production use, with no Additional Use Grant; this version
-changes to Apache 2.0 on 2030-10-16 (or the earlier date required by the licence).
+Open source under the Apache License 2.0. Free to use, change and share. It is
+still a development tool: not for production use, and provided "as is".
 
 ## Threat model and known limits
 

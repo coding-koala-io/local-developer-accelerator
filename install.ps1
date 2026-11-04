@@ -30,7 +30,7 @@
     Write-Host 'Local Developer Accelerator for Optimizely - by Coding Koala' -ForegroundColor Cyan
     Write-Host 'Development and research use only. Never use in production.' -ForegroundColor Yellow
     Write-Host '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.'
-    Write-Host '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: BSL 1.1.'
+    Write-Host '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.'
     Write-Host '- Independent project; not affiliated with, sponsored by or endorsed by Optimizely.'
     Write-Host ''
 
