@@ -1,4 +1,6 @@
-# Privacy — Local Developer Accelerator for Optimizely
+# Privacy — Local Developer Accelerator (LDA), compatible with Optimizely CMS 13
+
+Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 
 Published by Coding Koalas Pty Ltd (ACN 668 775 433), by Coding Koala.
 Last updated: 2026-10-16.
