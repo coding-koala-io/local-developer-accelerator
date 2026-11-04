@@ -1,6 +1,6 @@
 {
   "name": "@coding-koala-io/accelerator",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Local Developer Accelerator — by Coding Koala. Install, upgrade and manage local development stand-ins compatible with Optimizely CMS 13 services. Development use only.",
   "type": "module",
   "bin": {

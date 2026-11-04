@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.2.0] - unreleased
+## [1.2.0] - 2026-11-04
 
 ### Changed
 - Licence changed to Apache 2.0; earlier versions stay under the Business Source License 1.1. Versions up to and including 1.1.0 keep that licence. LICENSE.md is now the standard Apache License 2.0 text, and a NOTICE file ships with every package.
