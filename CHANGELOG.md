@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.1] - 2026-11-05
+
+### Changed
+- README: the 43-second demo and a link to the video on YouTube.
+
 ## [1.2.0] - 2026-11-04
 
 ### Changed
