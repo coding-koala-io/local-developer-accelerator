@@ -11,6 +11,7 @@ import {doctor} from './doctor.js';
 import {startHub} from './hub.js';
 import {tray} from './tray.js';
 import {findLatestCli} from './self-update.js';
+import {superviseForeground} from './foreground.js';
 const exec = promisify(execFile);
 export async function main(argv = process.argv.slice(2), deps = {}) {
   const stdout = deps.stdout || process.stdout, stderr = deps.stderr || process.stderr, env = deps.env || process.env;
@@ -52,9 +53,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   });
   program.command('run <modules...>').description('Run without admin, with foreground output').option('--port <number>', '', Number).action(async (keys, cmd) => {
     const job = await engine.run(keys, opts(cmd));
-    const done = job.children.map(child => new Promise((resolve, reject) => {child.once('error', reject); child.once('exit', code => {if (code) exitCode = code; resolve();});}));
-    let stop; const signal = new Promise(resolve => {stop = () => {job.stop(); resolve();}; process.once('SIGINT', stop); process.once('SIGTERM', stop);});
-    try {await Promise.race([Promise.all(done), signal]);} finally {job.stop(); process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop);}
+    exitCode = await superviseForeground(job.children);
   });
   program.command('doctor').option('--online', 'Check clock against GitHub (network)').action(async cmd => {const flags = opts(cmd), checks = await (deps.doctor || doctor)(engine, {online: flags.online}); print(flags.json ? checks : renderDoctor(checks, {unicode: tty && !('NO_COLOR' in env)})); if (checks.some(c => !c.ok)) exitCode = 1;});
   const cfg = program.command('config').description('Get or set checkUpdates, hubPort, ports.<module>');

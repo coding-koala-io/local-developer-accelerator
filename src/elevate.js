@@ -9,7 +9,7 @@ export class CancelledError extends Error { constructor() {super('Cancelled at t
 export function createElevator({paths, platform = process.platform, runner = powershell, progress = () => {}}) {
   return async (plan, {dryRun = false} = {}) => {
     if (dryRun && platform !== 'win32') return {ok: true, dryRun: true, operations: plan.operations, log: planSteps(plan)};
-    if (platform !== 'win32') return {ok: false, unsupported: true, log: ['Windows only in v1; use `lda run`']};
+    if (platform !== 'win32') return {ok: false, unsupported: true, log: ['Windows only: service installation and approval. On Linux/macOS use lda run all.']};
     await mkdir(paths.plans, {recursive: true, mode: 0o700});
     // Replace the DACL, including previously inherited ACEs, before writing a plan. SetAccessControl writes only the
     // owner and DACL; Set-Acl also tries the audit (SACL) section once the folder is protected, which needs

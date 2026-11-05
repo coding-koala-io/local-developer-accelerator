@@ -2,7 +2,7 @@ import {fileURLToPath} from 'node:url';
 import {powershell, psQuote} from './process.js';
 export const trayScript = fileURLToPath(new URL('../tray/lda-tray.ps1', import.meta.url));
 export async function tray(engine, {atLogin = false, removeAtLogin = false, stop = false, dryRun = false, runner = powershell, cli = fileURLToPath(new URL('../bin/lda.js', import.meta.url))} = {}) {
-  if (engine.platform !== 'win32') return 'Windows only in v1; use `lda run`';
+  if (engine.platform !== 'win32') return 'Windows only: tray and login registration. On Linux/macOS use lda run all.';
   if (dryRun) return `Tray: ${stop ? 'signal quit (services keep running)' : 'start hidden, STA, single instance'}${atLogin ? '; set HKCU Run LocalDeveloperAccelerator' : ''}${removeAtLogin ? '; remove HKCU Run LocalDeveloperAccelerator' : ''}`;
   const quoteArg = s => `"${s}"`;
   const command = `${quoteArg(process.execPath)} ${quoteArg(cli)} tray`;

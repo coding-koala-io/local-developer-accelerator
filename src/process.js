@@ -40,6 +40,7 @@ export function failureDetail({stderr = '', stdout = ''} = {}) {
   return text.length > 400 ? `${text.slice(0, 397)}...` : text;
 }
 export async function powershell(script, {runner = exec, platform = process.platform, env = process.env, ...opts} = {}) {
+  if (platform !== 'win32') throw new Error('Windows only: PowerShell approval and service commands. On Linux/macOS use lda run all.');
   try {
     const {stdout} = await runner(windowsPowerShellPath({platform, env}), ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', Buffer.from(`$ProgressPreference='SilentlyContinue'; ${script}`, 'utf16le').toString('base64')], {windowsHide: true, maxBuffer: 8 * 1024 * 1024, ...opts, env: childEnv(env)});
     return stdout.trim().replace(/^﻿/, '');
