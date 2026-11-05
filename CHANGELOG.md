@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- README: says where it is tested (Windows, WSL); Linux and macOS not verified yet.
+
 ## [1.2.1] - 2026-11-05
 
 ### Changed
