@@ -17,8 +17,9 @@ Compatible with Optimizely CMS 13. Not affiliated with or endorsed by Optimizely
 Watch the 43-second demo: https://youtu.be/uIBKd3OSXro
 
 By Coding Koala · published by Coding Koalas Pty Ltd (ACN 668 775 433).
-Node 24 or newer. Windows services, optional tray and a loopback-only hub;
-foreground mode also works on macOS/Linux. Open source under the Apache License 2.0;
+Node 24 or newer. Windows services, optional tray and a loopback-only hub.
+Tested on Windows and on WSL (Ubuntu). On Linux and macOS, foreground mode (`lda run`) passes our unit tests in CI, but a full install and run there is not verified yet. Docker is planned.
+Open source under the Apache License 2.0;
 still a development tool, not for production use.
 
 ## Install and quick start
@@ -29,7 +30,7 @@ Windows (PowerShell 5.1 or 7, no administrator rights needed):
 irm https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.ps1 | iex
 ```
 
-macOS / Linux:
+macOS / Linux (not verified yet, see above):
 
 ```sh
 curl -fsSL https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.sh | sh
