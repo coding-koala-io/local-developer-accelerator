@@ -14,6 +14,8 @@
 
 Compatible with Optimizely CMS 13. Not affiliated with or endorsed by Optimizely.
 
+Watch the 43-second demo: https://youtu.be/uIBKd3OSXro
+
 By Coding Koala · published by Coding Koalas Pty Ltd (ACN 668 775 433).
 Node 24 or newer. Windows services, optional tray and a loopback-only hub;
 foreground mode also works on macOS/Linux. Open source under the Apache License 2.0;
