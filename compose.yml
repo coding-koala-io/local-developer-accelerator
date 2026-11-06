@@ -1,0 +1,15 @@
+services:
+  lda:
+    build: .
+    ports:
+      - "127.0.0.1:8082:8082"
+      - "127.0.0.1:8083:8083"
+    environment:
+      # Read `lda about` (or the repository LEGAL-NOTICE.md) before running.
+      LDA_ACCEPT_NOTICE: "1"
+    volumes:
+      - lda-data:/home/node/.local/share
+    stop_grace_period: 30s
+
+volumes:
+  lda-data:

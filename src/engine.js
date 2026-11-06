@@ -61,7 +61,7 @@ export function createEngine(deps = {}) {
   }
   function releaseFields(bundle) {return {version: bundle.version, zip: bundle.zip, sha256: bundle.sha256};}
   async function act(action, keys = [], opts = {}) {
-    if (platform !== 'win32' && !opts.dryRun) return {ok: false, unsupported: true, log: ['Windows only in v1; use `lda run`']};
+    if (platform !== 'win32' && !opts.dryRun) return {ok: false, unsupported: true, log: ['Services are Windows only. On Linux/macOS use lda run all; stop foreground services with Ctrl+C or SIGTERM.']};
     const rows = await status(), c = await config.read(), ask = opts.confirm || confirm;
     let selected = keys.length ? selectModules(keys) : catalog.filter(m => rows.find(s => s.module === m.key)?.[action === 'adopt' ? 'legacy' : 'installed']);
     const ops = [], reserved = new Set(), notes = [];

@@ -165,6 +165,28 @@ test('install.sh end to end: fake API, real tarball, temporary npm prefix', {ski
   assert.ok(out.includes(`Installed lda ${pkg.version}.`), out);
 });
 
+test('install.sh installs a local checkout or tarball without contacting the release API', {skip: process.platform === 'win32' || !shAvailable, timeout: 300000}, async t => {
+  const f = await packFixture(t), api = await fakeReleases(t, f);
+  const tarball = path.join(f.dir, 'cli package.tgz'); await writeFile(tarball, f.bytes);
+  for (const [i, source] of [root, tarball].entries()) {
+    const env = baseEnv(path.join(f.dir, String(i)), api.base, {LDA_INSTALL_SOURCE: source});
+    const {stdout} = await exec('sh', [sh], {env, timeout: 120000, maxBuffer: 16 * 1024 * 1024});
+    assert.match(stdout, /Installing trusted local CLI package/);
+    assert.ok(stdout.includes(`Installed lda ${pkg.version}.`), stdout);
+    const {stdout: version} = await exec(path.join(env.npm_config_prefix, 'bin', 'lda'), ['--version']);
+    assert.equal(version.trim(), pkg.version);
+  }
+  assert.deepEqual(api.requests, [], 'local input must not download a released CLI');
+});
+
+test('install.sh rejects missing local input before networking or installation', {skip: process.platform === 'win32' || !shAvailable}, async t => {
+  const f = await packFixture(t), api = await fakeReleases(t, f);
+  const env = baseEnv(f.dir, api.base, {LDA_INSTALL_SOURCE: path.join(f.dir, 'missing')});
+  await assert.rejects(exec('sh', [sh], {env}), e => /LDA_INSTALL_SOURCE does not exist/.test(e.stderr));
+  assert.deepEqual(api.requests, []);
+  assert.equal(existsSync(path.join(env.npm_config_prefix, 'bin', 'lda')), false);
+});
+
 const pwsh7 = process.platform === 'win32' && spawnSync('pwsh', ['-NoProfile', '-Command', 'exit 0']).status === 0;
 test('install.ps1 end to end in PowerShell 7 (latest release, no pin)', {skip: !pwsh7 && 'PowerShell 7 not available', timeout: 300000}, async t => {
   const f = await packFixture(t), api = await fakeReleases(t, f);

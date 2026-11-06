@@ -19,16 +19,22 @@ async function versionOf(node) {
   try {return (await exec(node, ['--version'], {windowsHide: true, timeout: 5000})).stdout.trim().replace(/^v/, '');} catch {return '0.0.0';}
 }
 const follow = (file, real) => {try {return real(file);} catch {return file;}};
-export async function doctor(engine, {online = false, ps = powershell, hash = sha256, disk = statfs, exists = access, fetcher = fetch, nodeVersion, nodePath, realpath = realpathSync, platform = process.platform, osVersion = os.release(), env = process.env, now = Date.now} = {}) {
+export async function doctor(engine, {online = false, ps = powershell, hash = sha256, disk = statfs, exists = access, fetcher = fetch, runner = exec, nodeVersion, nodePath, realpath = realpathSync, platform = process.platform, osVersion = os.release(), env = process.env, now = Date.now} = {}) {
   const checks = [], add = (name, ok, message, fix) => checks.push({name, ok: !!ok, message, fix});
   const node = follow(nodePath || await serviceNode({platform, ps}), realpath), version = nodeVersion || await versionOf(node);
   add('Node', Number(version.split('.')[0]) >= 24, `${version} at ${node}`, 'Install Node 24 or newer.');
-  add('Node location', !/\\(?:Users|AppData|nvm)\\|\/(?:home|Users)\//i.test(node), node, 'Use an administrator-managed Node installation in Program Files for Windows services.');
-  add('Windows version', platform === 'win32', `${platform} ${osVersion}`, 'Windows only in v1; use `lda run` on macOS/Linux.');
+  if (platform === 'win32') {
+    add('Node location', !/\\(?:Users|AppData|nvm)\\|\/(?:home|Users)\//i.test(node), node, 'Use an administrator-managed Node installation in Program Files for Windows services.');
+    add('Windows version', true, `${platform} ${osVersion}`, 'Windows only in v1; use `lda run` on macOS/Linux.');
+  } else add('Foreground platform', true, `${platform} ${osVersion}; use lda run all (service management is Windows only)`, '');
   if (platform === 'win32') {const tar = tarPath({platform, env}); try {await exists(tar); add('tar', true, tar, '');} catch {add('tar', false, `${tar} not found`, 'Windows 10 1803 or newer includes tar.exe in System32; repair Windows or update it.');}}
-  else add('tar', true, 'tar (foreground extraction)', '');
+  else {
+    const tar = tarPath({platform, env});
+    try {await runner(tar, ['--version'], {timeout: 5000}); add('ZIP extractor', true, tar, '');}
+    catch {add('ZIP extractor', false, `${tar} not found`, platform === 'linux' ? 'Install libarchive-tools with your package manager, then retry lda run all.' : 'Install a ZIP-capable tar (libarchive).');}
+  }
   const rows = await engine.status();
-  for (const mod of catalog) {
+  for (const mod of platform === 'win32' ? catalog : []) {
     const s = rows.find(r => r.module === mod.key), prefix = mod.key;
     // A legacy service is fixed by adopting it, never by start/reinstall.
     const fix = normal => s.legacy ? `Run lda adopt ${mod.key}; it keeps the data folder and port.` : normal;

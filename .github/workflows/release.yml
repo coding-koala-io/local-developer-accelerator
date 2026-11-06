@@ -5,6 +5,8 @@ on:
 permissions:
   contents: read
 jobs:
+  linux-e2e:
+    uses: ./.github/workflows/linux-e2e.yml
   test:
     strategy:
       matrix:
@@ -21,7 +23,7 @@ jobs:
         run: node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('package.json')); if(process.env.GITHUB_REF_NAME !== 'v'+p.version) process.exit(1);"
       - run: npm test
   release:
-    needs: test
+    needs: [test, linux-e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -51,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
   publish:
-    needs: test
+    needs: [test, linux-e2e]
     if: vars.NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     permissions:

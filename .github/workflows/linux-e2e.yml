@@ -1,0 +1,78 @@
+name: Linux and Docker end to end
+on: [push, pull_request, workflow_call]
+permissions:
+  contents: read
+jobs:
+  linux-install-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install ZIP extraction tool
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+      - name: Install this checkout as a user
+        shell: bash
+        run: |
+          export npm_config_prefix="$RUNNER_TEMP/lda-prefix"
+          export PATH="$npm_config_prefix/bin:$PATH"
+          LDA_INSTALL_SOURCE="$GITHUB_WORKSPACE" sh install.sh
+          echo "$npm_config_prefix/bin" >> "$GITHUB_PATH"
+          lda --version
+      - name: Run, check health, stop, and check closed ports
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HOME="$RUNNER_TEMP/lda-home"
+          mkdir -p "$HOME"
+          node scripts/e2e-health.js closed
+          lda run all --accept-notice > "$RUNNER_TEMP/lda-services.log" 2>&1 &
+          lda_pid=$!
+          cleanup() {
+            result=$?
+            trap - EXIT
+            if kill -0 "$lda_pid" 2>/dev/null; then
+              kill -TERM "$lda_pid"
+              wait "$lda_pid" || result=1
+            fi
+            if [ "$result" -ne 0 ]; then cat "$RUNNER_TEMP/lda-services.log"; fi
+            exit "$result"
+          }
+          trap cleanup EXIT
+          node scripts/e2e-health.js wait
+          kill -TERM "$lda_pid"
+          wait "$lda_pid"
+          node scripts/e2e-health.js closed
+  docker-compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build this checkout
+        run: docker compose build
+      - name: Start, check health and loopback publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/e2e-health.js closed
+          docker compose up -d
+          node scripts/e2e-health.js wait
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q lda)")" = healthy || {
+            sleep 5
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q lda)")" = healthy
+          }
+          node scripts/e2e-health.js lan
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop and remove test data
+        if: always()
+        run: docker compose down -v --timeout 30
+      - name: Confirm ports closed
+        if: always()
+        run: node scripts/e2e-health.js closed
