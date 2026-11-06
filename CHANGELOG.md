@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-06
+
 ### Added
 - Linux: real install with install.sh and `lda run all` proven in CI on Ubuntu (8082 and 8083 healthy, clean stop); Windows-only commands say so on Linux; ZIP releases read with bsdtar (libarchive-tools).
 - Docker: Dockerfile and compose.yml (ports on 127.0.0.1 only, one named volume, non-root, healthcheck), proven in CI; see docs/docker.md. Connecting a real CMS 13 site is not verified yet.
