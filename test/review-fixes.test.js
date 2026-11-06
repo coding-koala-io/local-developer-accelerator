@@ -79,7 +79,7 @@ test('lda adopt accepts --version and --from like install', async t => {
 });
 
 test('tar is always System32 tar.exe on Windows', async () => {
-  assert.equal(tarPath({platform: 'win32', env: {SystemRoot: 'C:\\Windows'}}), 'C:\\Windows\\System32\\tar.exe'); assert.equal(tarPath({platform: 'linux', env: {}}), 'tar');
+  assert.equal(tarPath({platform: 'win32', env: {SystemRoot: 'C:\\Windows'}}), 'C:\\Windows\\System32\\tar.exe'); assert.equal(tarPath({platform: 'linux', env: {}}), 'bsdtar');
   const used = []; await assert.rejects(extractArchive('x.zip', 'dest', {tar: 'C:\\Windows\\System32\\tar.exe', runner: async exe => {used.push(exe); return {stdout: ''};}}), /Unsafe archive/);
   assert.deepEqual([...new Set(used)], ['C:\\Windows\\System32\\tar.exe']);
 });

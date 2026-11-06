@@ -4,6 +4,7 @@
 # Options (environment variables):
 #   LDA_VERSION      pin a release, for example v1.1.0 (default: the latest release)
 #   GITHUB_TOKEN     optional; sent only to the releases API to avoid its rate limit
+#   LDA_INSTALL_SOURCE  trusted local checkout directory or npm .tgz (no release lookup/checksum)
 #   LDA_INSTALL_API  override the releases API base (testing and mirrors only)
 # Needs curl, Node.js 24+ and npm. It never installs Node.js and needs no sudo
 # unless your npm global folder is owned by root.
@@ -27,19 +28,33 @@ printf -- '- Independent project; not affiliated with, sponsored by or endorsed 
 
 # 1. Tools: curl, Node.js 24+, npm, a SHA-256 tool. Node.js is never installed automatically.
 NODE_HELP="Install Node.js 24 or newer (https://nodejs.org, or your package manager, for example: brew install node), open a new terminal and run this command again."
-command -v curl >/dev/null 2>&1 || fail "curl was not found." "Install curl with your package manager and run this command again."
 command -v node >/dev/null 2>&1 || fail "Node.js was not found on PATH." "$NODE_HELP"
 NODE_VERSION=$(node --version 2>/dev/null || true)
 NODE_MAJOR=$(printf '%s' "$NODE_VERSION" | sed -n 's/^v\([0-9][0-9]*\)\..*/\1/p')
 [ -n "$NODE_MAJOR" ] || fail "Could not read the Node.js version (got '$NODE_VERSION')." "$NODE_HELP"
 [ "$NODE_MAJOR" -ge 24 ] || fail "Node.js $NODE_VERSION is too old; this CLI needs Node.js 24 or newer." "$NODE_HELP"
 command -v npm >/dev/null 2>&1 || fail "npm was not found on PATH." "npm ships with Node.js; reinstall Node.js 24 or newer from https://nodejs.org and open a new terminal."
+printf 'Node.js %s and npm found.\n' "$NODE_VERSION"
+TMP=$(mktemp -d 2>/dev/null || mktemp -d -t lda-install)
+if [ -n "${LDA_INSTALL_SOURCE:-}" ]; then
+  # Local input is explicitly trusted by the caller. Pack directories so npm installs
+  # a real package rather than symlinking the checkout into the global prefix.
+  SOURCE=$(node -e 'process.stdout.write(require("path").resolve(process.argv[1]))' "$LDA_INSTALL_SOURCE")
+  if [ -d "$SOURCE" ] && [ -f "$SOURCE/package.json" ]; then
+    PACKED=$(npm pack "$SOURCE" --ignore-scripts --silent --pack-destination "$TMP") || fail "Could not pack LDA_INSTALL_SOURCE." "Set LDA_INSTALL_SOURCE to a CLI checkout or packed .tgz."
+    TGZ="$TMP/$PACKED"
+  elif [ -f "$SOURCE" ]; then
+    case "$SOURCE" in *.tgz) TGZ="$SOURCE" ;; *) fail "LDA_INSTALL_SOURCE must be a checkout or .tgz." "Use npm pack to produce a CLI tarball." ;; esac
+  else
+    fail "LDA_INSTALL_SOURCE does not exist or has no package.json." "Set it to a CLI checkout directory or packed .tgz."
+  fi
+  printf 'Installing trusted local CLI package (release verification skipped).\n'
+else
+command -v curl >/dev/null 2>&1 || fail "curl was not found." "Install curl with your package manager and run this command again."
 if command -v sha256sum >/dev/null 2>&1; then SHA="sha256sum"
 elif command -v shasum >/dev/null 2>&1; then SHA="shasum -a 256"
 else fail "No SHA-256 tool (sha256sum or shasum) was found." "Install coreutils (Linux) or Perl's shasum (macOS ships it) and run again."
 fi
-printf 'Node.js %s and npm found.\n' "$NODE_VERSION"
-
 # 2. Which release.
 API="${LDA_INSTALL_API:-https://api.github.com/repos/$REPO}"
 API="${API%/}"
@@ -51,7 +66,6 @@ if [ -n "$PIN" ]; then
 else
   RELEASE_URL="$API/releases/latest"
 fi
-TMP=$(mktemp -d 2>/dev/null || mktemp -d -t lda-install)
 JSON="$TMP/release.json"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   STATUS=$(curl -sSL -o "$JSON" -w '%{http_code}' --max-time 30 -H 'Accept: application/vnd.github+json' -H 'User-Agent: lda-installer' -H "Authorization: Bearer $GITHUB_TOKEN" "$RELEASE_URL" || echo 000)
@@ -97,6 +111,8 @@ ACTUAL=$($SHA "$TGZ" | awk '{print tolower($1)}')
 [ "$ACTUAL" = "$EXPECTED" ] || fail "Checksum mismatch for $TGZ_NAME (expected $EXPECTED, got $ACTUAL). The download is damaged or was tampered with; nothing was installed." "Run the command again. If it keeps failing, report it at https://github.com/$REPO/issues."
 printf 'SHA-256 verified (%s).\n' "$ACTUAL"
 
+fi
+
 # 4. Install with npm.
 npm i -g "$TGZ" --no-fund --no-audit || fail "npm install failed." "Read the npm messages above. On EACCES your npm global folder is not writable: run 'npm config set prefix ~/.npm-global', add ~/.npm-global/bin to PATH, then run this again (avoid sudo)."
 
@@ -110,9 +126,9 @@ INSTALLED=$("$LDA" --version 2>/dev/null || true)
 printf '\nInstalled lda %s.\n' "$INSTALLED"
 case ":$PATH:" in *":$PREFIX/bin:"*) ;; *) printf 'Note: %s/bin is not on PATH. Add it to PATH, then open a new terminal.\n' "$PREFIX" ;; esac
 printf '\nNext steps:\n'
+printf '  lda run all                run Graph and Assets; Ctrl+C or SIGTERM stops both (macOS/Linux)\n'
 printf '  lda                        open the manager (first run asks you to accept the notice)\n'
-printf '  lda install graph assets   install LDA Local Graph and LDA Local Assets (Windows services)\n'
-printf '  lda run all                run the modules in the foreground (macOS/Linux)\n'
-printf '  lda adopt                  take over an older install without moving its data\n'
-printf '  lda tray                   start the tray icon (Windows)\n'
+printf '  lda install graph assets   Windows only: install LDA Local Graph and LDA Local Assets as services\n'
+printf '  lda adopt                  Windows only: take over an older service install without moving its data\n'
+printf '  lda tray                   Windows only: start the tray icon\n'
 printf '  lda self-update            update this CLI later\n'
