@@ -11,7 +11,11 @@ COPY *.md NOTICE ./
 
 FROM node:24.11.1-bookworm-slim@sha256:48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57
 # GNU tar cannot read the ZIP releases; bsdtar preserves the archive safety checks.
-RUN apt-get update && apt-get install -y --no-install-recommends libarchive-tools=3.6.2-1+deb12u4 ca-certificates=20230311+deb12u1 \
+# The base image is pinned by digest. Debian removes superseded package versions
+# from its archive, so exact apt pins break on the next security update; the
+# installed versions are printed in the build log instead.
+RUN apt-get update && apt-get install -y --no-install-recommends libarchive-tools ca-certificates \
+    && dpkg-query -W -f='installed ${Package} ${Version}\n' libarchive-tools libarchive13 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=package /build/ /opt/lda/app/
 RUN chmod 755 /opt/lda/app/bin/lda.js \
