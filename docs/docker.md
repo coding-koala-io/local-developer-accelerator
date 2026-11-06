@@ -37,5 +37,6 @@ at build time and its usual verified GitHub service releases on first run.
 The image needs the default bridge network; do not use host networking or publish
 additional interfaces. A CMS in another container is outside this host-only setup.
 
-CI builds the image and checks health and host LAN isolation. A real Docker run
-and CMS connection remain unverified until CI and a local CMS smoke test pass.
+Docker Compose startup was proven in CI on Ubuntu by the "Linux and Docker end
+to end" workflow, including service health and host LAN isolation checks.
+Connecting a real CMS 13 site to this Docker setup is not verified yet.

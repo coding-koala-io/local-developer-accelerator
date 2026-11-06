@@ -1,22 +1,22 @@
-FROM node:24-bookworm-slim AS package
+FROM node:24.11.1-bookworm-slim@sha256:48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57 AS package
 WORKDIR /build
 COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY bin ./bin
 COPY src ./src
 COPY elevated ./elevated
 COPY tray ./tray
 COPY docs ./docs
 COPY *.md NOTICE ./
-RUN mkdir /package && npm pack --ignore-scripts --pack-destination /package
 
-FROM node:24-bookworm-slim
+FROM node:24.11.1-bookworm-slim@sha256:48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57
 # GNU tar cannot read the ZIP releases; bsdtar preserves the archive safety checks.
-RUN apt-get update && apt-get install -y --no-install-recommends libarchive-tools ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends libarchive-tools=3.6.2-1+deb12u4 ca-certificates=20230311+deb12u1 \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=package /package/ /tmp/package/
-COPY install.sh /tmp/install.sh
-RUN LDA_INSTALL_SOURCE="$(find /tmp/package -name '*.tgz')" sh /tmp/install.sh \
-    && rm -rf /tmp/package /tmp/install.sh /root/.npm \
+COPY --from=package /build/ /opt/lda/app/
+RUN chmod 755 /opt/lda/app/bin/lda.js \
+    && ln -s /opt/lda/app/bin/lda.js /usr/local/bin/lda \
+    && ln -s /opt/lda/app/bin/lda.js /usr/local/bin/accelerator \
     && mkdir -p /home/node/.local/share && chown -R node:node /home/node/.local
 COPY --chown=node:node docker /opt/lda/docker
 USER node

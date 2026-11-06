@@ -34,6 +34,8 @@ downloads the latest release and verifies its SHA-256 before installation.
 For a user-owned npm prefix, set `npm_config_prefix="$HOME/.npm-global"` and add
 `$HOME/.npm-global/bin` to `PATH` before installing. No sudo is needed for the CLI.
 
-The `linux-install-run` and `docker-compose` jobs in `linux-e2e.yml` exercise real
-service releases. Linux/Docker execution remains unverified until those jobs pass;
-macOS is not covered by these jobs.
+Linux install-and-run and Docker Compose startup were proven in CI on Ubuntu by
+the "Linux and Docker end to end" workflow (`linux-install-run` and
+`docker-compose` in `linux-e2e.yml`), using real service releases. Connecting a
+real CMS 13 site to either setup is not verified yet. macOS is not covered by
+these jobs.
