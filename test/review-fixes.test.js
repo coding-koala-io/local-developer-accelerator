@@ -99,7 +99,7 @@ test('hub: cheap /api/health poll every 3 s, full status every 30 s, Start hidde
   const f = await fixture(t), fake = fakeEngine(f, {states: {graph: installed()}}); let quick = 0;
   const original = fake.engine.quickStatus; fake.engine.quickStatus = async () => {quick++; return original();};
   const hub = await startHub({engine: fake.engine, port: 0}); t.after(() => hub.close());
-  const rows = await (await fetch(hub.url + 'api/health')).json(); assert.equal(rows.length, 2); assert.equal(quick, 1);
+  const rows = await (await fetch(hub.url + 'api/health')).json(); assert.equal(rows.length, 3); assert.equal(quick, 1);
   const html = await (await fetch(hub.url)).text();
   assert.ok(html.includes("setInterval(()=>refresh(false),3000)")); assert.ok(html.includes("setInterval(()=>refresh(true),30000)")); assert.ok(html.includes("full?'/api/status':'/api/health'"));
   const graphCard = renderHub([{module: 'graph', installed: true, state: 'running', serviceState: 'running', port: 8082}], {token: 't'}).split('id="assets"')[0];

@@ -4,7 +4,7 @@ param([Parameter(Mandatory=$true)][string]$ConfigFile)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # CATALOG-KEYS (kept identical to src/catalog.js by tests)
-$script:CatalogKeys=@('graph','assets')
+$script:CatalogKeys=@('graph','assets','find')
 function Test-ModuleKey([string]$Key) {
     # tray.json is user-writable: only known catalogue keys may reach a command line.
     return ($Key -cmatch '^[a-z-]+$') -and ($script:CatalogKeys -ccontains $Key)
@@ -80,7 +80,14 @@ function Refresh-Tray {
         if ($script:health.ContainsKey($key)) {$state=$script:health[$key]; if (!$state.ContainsKey('down')) {$running++}; if ($state.ok) {$healthy++}}
         $sub=New-Object Windows.Forms.ToolStripMenuItem("$($module.product) :$port")
         $menu.Items.Add($sub) | Out-Null
-        Add-Action $sub 'Open dashboard' {Invoke-Cli @('open',$key)}.GetNewClosure() | Out-Null
+        $cmsLine=[string](Get-Field $module 'cmsLine' '')
+        if ($cmsLine) {
+            $compatibility=New-Object Windows.Forms.ToolStripMenuItem($cmsLine)
+            $compatibility.Enabled=$false; $sub.DropDownItems.Add($compatibility) | Out-Null
+        }
+        if ([bool](Get-Field $module 'hasDashboard' $true)) {
+            Add-Action $sub 'Open dashboard' {Invoke-Cli @('open',$key)}.GetNewClosure() | Out-Null
+        }
         if ([bool](Get-Field $module 'legacy' $false)) {
             # Legacy services are changed only by lda adopt.
             $note=New-Object Windows.Forms.ToolStripMenuItem('Legacy install - run lda adopt'); $note.Enabled=$false; $sub.DropDownItems.Add($note) | Out-Null

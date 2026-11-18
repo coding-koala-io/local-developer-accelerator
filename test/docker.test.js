@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import {readFile} from 'node:fs/promises';
 import {EventEmitter, once} from 'node:events';
 import {containerAddresses, createRelay, startContainer} from '../docker/entrypoint.js';
 const interfaces = {lo: [{internal: true, family: 'IPv4', address: '127.0.0.1'}], eth0: [{internal: false, family: 'IPv4', address: '172.18.0.2'}, {internal: false, family: 'IPv6', address: '::2'}]};
 test('image forwarding selects only container IPv4 interfaces', () => {
   assert.deepEqual(containerAddresses(interfaces), ['172.18.0.2']);
+});
+test('Compose publishes all service ports on host loopback', async () => {
+  const compose = await readFile(new URL('../compose.yml', import.meta.url), 'utf8');
+  const ports = [...compose.matchAll(/^\s+- "([^"]+)"$/gm)].map(match => match[1]);
+  assert.deepEqual(ports, ['127.0.0.1:8082:8082', '127.0.0.1:8083:8083', '127.0.0.1:8088:8088']);
 });
 test('image entrypoint starts lda run all and propagates stop before closing relays', async () => {
   const signals = new EventEmitter(), child = new EventEmitter(), events = [];
@@ -17,7 +23,7 @@ test('image entrypoint starts lda run all and propagates stop before closing rel
     queueMicrotask(() => signals.emit('SIGTERM')); return child;
   }});
   assert.equal(await done, 0);
-  assert.deepEqual(events, [['172.18.0.2', 8082], ['172.18.0.2', 8083], 'SIGTERM', 'closed', 'closed']);
+  assert.deepEqual(events, [['172.18.0.2', 8082], ['172.18.0.2', 8083], ['172.18.0.2', 8088], 'SIGTERM', 'closed', 'closed', 'closed']);
   assert.equal(signals.listenerCount('SIGTERM'), 0);
 });
 test('entrypoint cleans up partially-created relays when a port is unavailable', async () => {

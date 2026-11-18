@@ -93,7 +93,11 @@ function checkInstallerBranding(stdout, scenario) {
   const screens = stdout.split('__LDA_CLOSING__');
   assert.equal(screens.length, 2);
   for (const screen of screens) assert.equal((screen.match(/built by Coding Koala/gi) || []).length, scenario.branded ? 1 : 0);
-  for (const text of ['Local Developer Accelerator (LDA), compatible with Optimizely CMS 13',
+  assert.doesNotMatch(stdout, /compatible with Optimizely CMS/i);
+  for (const text of ['Local Developer Accelerator (LDA)',
+    'Local Graph: Made for CMS 13 sites. Not tested with CMS 12.',
+    'Local Assets: Made for CMS 13 sites. Not tested with CMS 12.',
+    'Local Find: Made for CMS 12 sites that use Search & Navigation.',
     'Development and research use only. Not designed or tested for production use.',
     '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.',
     '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.',

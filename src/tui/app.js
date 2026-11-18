@@ -1,7 +1,7 @@
 import React, {useEffect, useState, useRef} from 'react';
 import {brandingAllowed} from '../branding.js';
 import {Box, Text, useApp, useInput} from 'ink';
-import {catalog, suite, version} from '../catalog.js';
+import {catalog, suite, suiteTagline, version} from '../catalog.js';
 import isUnicodeSupported from 'is-unicode-supported';
 const h = React.createElement;
 export function App({engine, refreshMs = 2000, fullRefreshMs = 30000, showBranding = brandingAllowed()}) {
@@ -41,6 +41,7 @@ export function App({engine, refreshMs = 2000, fullRefreshMs = 30000, showBrandi
     if (input === 'l') {setTail(x => !x); return;}
     if (input === 'a') {setAll(x => !x); return;}
     if (!['o', 's', 'r', 'i', 'u'].includes(input) || !selected) return;
+    if (input === 'o' && !mod.hasDashboard) return;
     const execute = async () => {
       setBusy(true);
       try {
@@ -58,9 +59,9 @@ export function App({engine, refreshMs = 2000, fullRefreshMs = 30000, showBrandi
       } catch (e) {setMessage(e.exitCode === 2 ? e.message : `${unicode ? '✖' : '[FAIL]'} ${e.message}`);} finally {setBusy(false);}
     }; void execute();
   });
-  return h(Box, {flexDirection: 'column'}, h(Text, {bold: true}, `${suite}${sep}lda ${version}`), h(Text, {dimColor: rich}, display(showBranding ? 'Development use only · Not affiliated with or endorsed by Optimizely · Built by Coding Koala' : 'Development use only · Not affiliated with or endorsed by Optimizely.')),
-    h(Box, {marginTop: 1, flexDirection: 'row'}, h(Box, {flexDirection: 'column', width: 32, marginRight: 2}, ...catalog.map((m, i) => {const r = rows.find(r => r.module === m.key); return h(Text, {key: m.key, inverse: i === index}, `${i === index ? '>' : ' '} ${unicode ? r?.health?.ok ? '●' : r?.installed ? '○' : '·' : '*'} ${m.runtimeFolder}  ${r?.version || '-'}${r?.update ? unicode ? ' ↑' : ' (update)' : ''}`);})),
-      h(Box, {flexDirection: 'column'}, h(Text, {bold: true}, mod.product), h(Text, null, display(`State: ${selected?.state || 'loading'}${selected?.legacy ? ' — run lda adopt' : ''}`)), h(Text, null, `Port: ${selected?.port || mod.port}   Version: ${selected?.version || '-'}`), h(Text, null, `Health: ${selected?.health?.ok ? `ok ${selected.health.latency}ms` : 'down'}${selected?.health?.uptime !== undefined ? `   Uptime: ${selected.health.uptime}s` : ''}`), h(Text, null, selected?.dashboard || ''), h(Text, null, display(`o open · ${selected?.serviceState === 'running' || selected?.state === 'running' ? 's stop' : 's start'} · r restart`)), h(Text, null, display(`${!selected?.installed ? 'i install · ' : selected?.update ? 'u upgrade · ' : 'u check updates · '}l logs · a act on all · q quit · ? help`)))),
+  return h(Box, {flexDirection: 'column'}, h(Text, {bold: true}, `${suite}${sep}lda ${version}`), h(Text, {dimColor: rich}, display('Development use only · Not affiliated with or endorsed by Optimizely.' + (showBranding ? ' · ' + suiteTagline : ''))),
+    h(Box, {marginTop: 1, flexDirection: 'row'}, h(Box, {flexDirection: 'column', width: 32, marginRight: 2}, ...catalog.map((m, i) => {const r = rows.find(r => r.module === m.key); return h(Box, {key: m.key, flexDirection: 'column'}, h(Text, {inverse: i === index}, `${i === index ? '>' : ' '} ${unicode ? r?.health?.ok ? '●' : r?.installed ? '○' : '·' : '*'} ${m.runtimeFolder}  ${r?.version || '-'}${r?.update ? unicode ? ' ↑' : ' (update)' : ''}`), h(Text, {dimColor: rich}, m.cmsLine));})),
+      h(Box, {flexDirection: 'column'}, h(Text, {bold: true}, mod.product), h(Text, null, display(`State: ${selected?.state || 'loading'}${selected?.legacy ? ' — run lda adopt' : ''}`)), h(Text, null, `Port: ${selected?.port || mod.port}   Version: ${selected?.version || '-'}`), h(Text, null, `Health: ${selected?.health?.ok ? `ok ${selected.health.latency}ms` : 'down'}${selected?.health?.uptime !== undefined ? `   Uptime: ${selected.health.uptime}s` : ''}`), mod.hasDashboard && h(Text, null, selected?.dashboard || ''), h(Text, null, display(`${mod.hasDashboard ? 'o open · ' : ''}${selected?.serviceState === 'running' || selected?.state === 'running' ? 's stop' : 's start'} · r restart`)), h(Text, null, display(`${!selected?.installed ? 'i install · ' : selected?.update ? 'u upgrade · ' : 'u check updates · '}l logs · a act on all · q quit · ? help`)))),
     help && h(Text, null, display('↑/↓ select module. a toggles all-module actions. Windows approval is required for service changes. Back up data before upgrading.')),
     tail && h(Box, {marginTop: 1}, h(Text, null, logs || 'Waiting for logs…')),
     question && h(Text, {bold: true}, question),

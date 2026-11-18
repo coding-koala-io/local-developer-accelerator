@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {createInterface} from 'node:readline/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {catalog, version} from './catalog.js';
+import {suite, suiteTagline, toolCompatibility, version} from './catalog.js';
 import {createEngine} from './engine.js';
 import {ensureNotice, firstRunNotice} from './notice.js';
 import {renderStatus, renderList, statusExitCode, renderDoctor} from './output.js';
@@ -23,7 +23,8 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const prompt = deps.prompt || (async question => {const rl = createInterface({input: process.stdin, output: stderr}); try {return await rl.question(question);} finally {rl.close();}});
   const engine = deps.engine || createEngine({progress: value => {if (!program.opts().json) stderr.write(`${typeof value === 'string' ? value : `Downloading ${value.file}: ${value.received}${value.total ? '/' + value.total : ''} bytes`}\r${tty ? '' : '\n'}`);}, confirm: async (question, typed) => tty && !env.CI && !program.opts().nonInteractive && (typed ? await prompt(question) === typed : /^y$/i.test(await prompt(question)))});
   const opts = cmd => typeof cmd.optsWithGlobals === 'function' ? cmd.optsWithGlobals() : {...program.opts(), ...cmd};
-  program.name('lda').description('Install, run and upgrade local development tools compatible with Optimizely CMS 13. Development use only.').addHelpText('after', '\nRun lda --version (or -V) on its own to print the CLI version.\nNot affiliated with or endorsed by Optimizely.\n' + (showBranding ? 'Free developer tools, built by Coding Koala: https://codingkoala.io\n' : '') + 'CLI licence: Apache License 2.0.')
+  program.name('lda').description(`${suite}. Install, run and upgrade local development tools. Development use only.`)
+    .addHelpText('after', `\n${toolCompatibility}\n\nRun lda --version (or -V) on its own to print the CLI version.\nNot affiliated with or endorsed by Optimizely.\n${showBranding ? suiteTagline + ': https://codingkoala.io\n' : ''}CLI licence: Apache License 2.0.`)
     .option('--json', 'Output JSON').option('--yes', 'Confirm requested operations').option('--non-interactive', 'Never ask for input').option('--dry-run', 'Print elevated plan steps without service changes').option('--accept-notice', 'Accept the first-run notice for this major version').exitOverride();
   program.configureOutput({writeOut: s => stdout.write(s), writeErr: s => stderr.write(s)});
   program.hook('preAction', async (_, cmd) => {
@@ -63,7 +64,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   cfg.command('set <key> <value>').action(async (key, value) => {print(await engine.config.set(key, value)); await engine.writeTray(await engine.status());});
   program.command('tray').option('--at-login').option('--remove-at-login').option('--stop').action(async cmd => print(await (deps.tray || tray)(engine, opts(cmd))));
   program.command('hub').option('--port <number>', '', Number).option('--open').action(async cmd => {const flags = opts(cmd), port = flags.port ?? await engine.config.get('hubPort'); const hub = await (deps.startHub || startHub)({engine, port}); print(`Hub: ${hub.url}`); if (flags.open) {const {openUrl} = await import('./process.js'); await (deps.openUrl || openUrl)(hub.url);} await untilSignal(() => hub.close());});
-  program.command('about').action(() => print(`${firstRunNotice(engine.paths.data)}\n\nlda ${version} · Apache License 2.0\n${showBranding ? 'Built by Coding Koala: https://codingkoala.io\n' : ''}Source and issues: https://github.com/coding-koala-io/local-developer-accelerator\nCopyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). See LEGAL-NOTICE.md and LICENSE.md.`));
+  program.command('about').action(() => print(`${firstRunNotice(engine.paths.data)}\n\n${toolCompatibility}\n\nlda ${version} · Apache License 2.0\n${showBranding ? suiteTagline + ': https://codingkoala.io\n' : ''}Source and issues: https://github.com/coding-koala-io/local-developer-accelerator\nCopyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). See LEGAL-NOTICE.md and LICENSE.md.`));
   for (const [name, file] of [['privacy', 'PRIVACY.md'], ['licence', 'LICENSE.md']]) program.command(name).action(async () => {
     const text = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
     print(name === 'privacy' && !showBranding ? text.replace(/^Built by Coding Koala\.\r?\n/m, '') : text);

@@ -25,7 +25,7 @@ RUN chmod 755 /opt/lda/app/bin/lda.js \
 COPY --chown=node:node docker /opt/lda/docker
 USER node
 WORKDIR /home/node
-EXPOSE 8082 8083
+EXPOSE 8082 8083 8088
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=5s --timeout=4s --start-period=120s --retries=3 \
     CMD ["node", "/opt/lda/docker/healthcheck.js"]

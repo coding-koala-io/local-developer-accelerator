@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,writeFile,readdir} from 'node:fs/promises';
 import {main} from '../src/cli.js';
-import {version} from '../src/catalog.js';
+import {catalog, version} from '../src/catalog.js';
 import {ensureNotice} from '../src/notice.js';
 import {createElevator,CancelledError} from '../src/elevate.js';
 import {tray} from '../src/tray.js';
@@ -13,7 +13,7 @@ test('about/privacy/licence/help/version bypass notice acceptance',async t=>{
   for(const args of [['about'],['privacy'],['licence'],['--help'],['--version']]){const r=await cli(t,args);assert.equal(r.code,0,r.stderr.text);assert.equal((await r.config.read()).noticeAcceptedMajor,undefined);assert.ok(r.stdout.text.length>0);}
 });
 test('first run in automation rejects without explicit acceptance, --yes is insufficient',async t=>{const r=await cli(t,['status','--yes']);assert.equal(r.code,1);assert.match(r.stderr.text,/--accept-notice/);assert.match(r.stderr.text,/development and research/);});
-test('CLI status JSON is an array and acceptance persists by major',async t=>{const r=await cli(t,['status','--json','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.equal(JSON.parse(r.stdout.text).length,2);assert.equal((await r.config.read()).noticeAcceptedMajor,1);});
+test('CLI status JSON is an array and acceptance persists by major',async t=>{const r=await cli(t,['status','--json','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.equal(JSON.parse(r.stdout.text).length,3);assert.equal((await r.config.read()).noticeAcceptedMajor,1);});
 test('no-argument automation prints the two-module status table',async t=>{const r=await cli(t,['--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.match(r.stdout.text,/LDA Local Graph/);assert.match(r.stdout.text,/LDA Local Assets/);});
 test('TTY notice accepts only y, prompts again for a new major',async t=>{
   const f=await fixture(t);const args={...f,tty:true,env:{},prompt:async()=> 'y',print:()=>{}};await ensureNotice(args);assert.equal((await f.config.read()).noticeAcceptedMajor,1);await f.config.save({noticeAcceptedMajor:0});await assert.rejects(ensureNotice({...args,prompt:async()=> 'yes'}),/not accepted/);await ensureNotice({...args,env:{LDA_ACCEPT_NOTICE:'1'},tty:false});
@@ -21,7 +21,7 @@ test('TTY notice accepts only y, prompts again for a new major',async t=>{
 test('install CLI parses local flags and produces one multi-module plan',async t=>{const r=await cli(t,['install','graph','assets','--dry-run','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.equal(r.calls.length,1);assert.equal(r.calls[0].opts.dryRun,true);});
 test('service CLI requires module arguments or --all',async t=>{const r=await cli(t,['start','--accept-notice']);assert.equal(r.code,1);assert.match(r.stderr.text,/--all/);});
 test('config CLI set/get performs typed update',async t=>{const r=await cli(t,['config','set','hubPort','9090','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.equal(await r.config.get('hubPort'),9090);});
-test('upgrade --check only reports and never elevates',async t=>{const r=await cli(t,['upgrade','--all','--check','--json','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.equal(r.calls.length,0);assert.equal(JSON.parse(r.stdout.text).length,2);});
+test('upgrade --check only reports and never elevates',async t=>{const r=await cli(t,['upgrade','--all','--check','--json','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.equal(r.calls.length,0);assert.equal(JSON.parse(r.stdout.text).length,3);});
 test('status returns exit 1 for an unhealthy installed module',async t=>{const f=await fixture(t),{engine}=fakeEngine(f,{states:{graph:installed()},health:async()=>({ok:false})});const code=await main(['status','--json','--accept-notice'],{engine,stdout:output(),stderr:output(),env:{}});assert.equal(code,1);});
 test('UAC runner cancels cleanly with exit 2 and removes temporary plan files',async t=>{
   const f=await fixture(t);let calls=0;const elevate=createElevator({paths:f.paths,platform:'win32',runner:async(script,meta)=>{calls++;if(meta?.planFile){throw Object.assign(Error('The operation was canceled by the user'),{code:1223});}}});
@@ -77,6 +77,8 @@ test('help and About share version branding suppression and retain one disclaime
       assert.equal(r.code, 0, r.stderr.text);
       assert.equal((stdout.text.match(/built by Coding Koala/gi) || []).length, scenario.branded ? 1 : 0);
       assert.equal((stdout.text.match(/Not affiliated with or endorsed by Optimizely\./g) || []).length, 1);
+      assert.doesNotMatch(stdout.text, /compatible with Optimizely CMS/i);
+      for (const mod of catalog) assert.ok(stdout.text.includes(`${mod.product}: ${mod.cmsLine}`), mod.key);
       assert.equal((await r.config.read()).noticeAcceptedMajor, undefined);
     }
   }

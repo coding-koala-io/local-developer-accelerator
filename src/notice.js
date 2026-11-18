@@ -1,8 +1,8 @@
-import {suite, version} from './catalog.js';
+import {suite, suiteTagline, toolCompatibility, version} from './catalog.js';
 export function firstRunNotice(dataRoot) {
   return `${suite} - development and research use only. Not designed or tested for production use.\n- Local stand-ins; not a replacement for Optimizely services. Behaviour differs.\n- Runs on this machine only. Do not expose it to a network.\n- Stores copies of your CMS content (including drafts) in ${dataRoot}.\n- No telemetry. Provided as is, without warranty. Licence: Apache 2.0. Privacy: PRIVACY.md\n- Not affiliated with or endorsed by Optimizely.`;
 }
-export const trayNotice = data => `${suite} ${version}\nBuilt by Coding Koala · codingkoala.io\nFor development and research only - not for production.\nNo telemetry. Data stays on this computer: ${data}\nProvided as is, without warranty.\nNot affiliated with or endorsed by Optimizely.\nOptimizely® is a trademark of Optimizely North America Inc.\nLicence | Privacy | Open data folder`;
+export const trayNotice = data => `${suite} ${version}\n${suiteTagline} · codingkoala.io\n\n${toolCompatibility}\n\nFor development and research only - not for production.\nNo telemetry. Data stays on this computer: ${data}\nProvided as is, without warranty.\nNot affiliated with or endorsed by Optimizely.\nOptimizely® is a trademark of Optimizely North America Inc.\nLicence | Privacy | Open data folder`;
 export async function ensureNotice({config, paths, accept = false, env = process.env, tty = false, nonInteractive = false, prompt, print = console.log}) {
   const c = await config.read(), major = Number(version.split('.')[0]);
   if (c.noticeAcceptedMajor === major) return;

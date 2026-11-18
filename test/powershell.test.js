@@ -11,10 +11,24 @@ import {fixture, winPs} from './helpers.js';
 const exec=promisify(execFile),helper=fileURLToPath(new URL('../elevated/lda-service.ps1',import.meta.url)),tray=fileURLToPath(new URL('../tray/lda-tray.ps1',import.meta.url));
 const psQuote=s=>`'${s.replaceAll("'","''")}'`;
 test('PowerShell module table is identical to catalogue data',async()=>{
-  const source=await readFile(helper,'utf8');for(const m of catalog){const table=source.match(new RegExp(`${m.key} = @\\{([^\\n]+)\\}`))?.[1];assert.ok(table);for(const [key,value] of Object.entries({Product:m.product,CompatibleWith:m.compatibleWith,Repo:m.repo,Port:m.port,ServiceId:m.serviceId,LegacyServiceId:m.legacyServiceIds[0],RuntimeFolder:m.runtimeFolder,MemoryMb:m.options.memoryMb?.default||0}))assert.ok(table.includes(`${key}=${typeof value==='string'?`'${value}'`:value}`),`${m.key}.${key}`);}assert.ok(source.includes(wrapperSha256));
+  const source = await readFile(helper, 'utf8');
+  for (const m of catalog) {
+    const table = source.match(new RegExp(`${m.key} = @\\{([^\\n]+)\\}`))?.[1];
+    assert.ok(table, m.key);
+    const fields = {
+      Product: m.product, CompatibleWith: m.compatibleWith, Repo: m.repo, Port: m.port, ServiceId: m.serviceId,
+      LegacyServiceId: m.legacyServiceIds[0] ?? '', RuntimeFolder: m.runtimeFolder,
+      HasTenants: m.hasTenants, MemoryMb: m.options.memoryMb?.default || 0,
+    };
+    for (const [key, value] of Object.entries(fields)) {
+      const literal = typeof value === 'string' ? `'${value}'` : typeof value === 'boolean' ? `$${value}` : value;
+      assert.ok(table.includes(`${key}=${literal}`), `${m.key}.${key}`);
+    }
+  }
+  assert.ok(source.includes(wrapperSha256));
 });
 test('elevated helper retains the required safety barriers',async()=>{
-  const source=await readFile(helper,'utf8');for(const text of ['SetAccessRuleProtection($true,$false)','Assert-SafeItem','Assert-RuntimeTree','Assert-OperationTrust','Test-OwnedProcess','Assert-NoReparse','Assert-SafeRemoval','previous XML restored','Hash-File $sealed','if (!(Test-Path -LiteralPath (Join-Path $ctx.Root \'tenants.json\')))'])assert.ok(source.includes(text),text);
+  const source=await readFile(helper,'utf8');for(const text of ['SetAccessRuleProtection($true,$false)','Assert-SafeItem','Assert-RuntimeTree','Assert-OperationTrust','Test-OwnedProcess','Assert-NoReparse','Assert-SafeRemoval','previous XML restored','Hash-File $sealed','if (!$mod.HasTenants -or !(Test-Path -LiteralPath (Join-Path $ctx.Root \'tenants.json\')))'])assert.ok(source.includes(text),text);
   assert.equal((source.match(/ReadAllBytes\(\$PlanFile\)/g)||[]).length,1);assert.ok(source.indexOf('Hash-Bytes $bytes) -ne $PlanSha256')<source.indexOf('$plan=$utf8.GetString($bytes) | ConvertFrom-Json'));
 });
 for(const script of [helper,tray])test(`PowerShell parser accepts ${path.basename(script)}`,{skip:process.platform!=='win32'},async()=>{
@@ -22,12 +36,18 @@ for(const script of [helper,tray])test(`PowerShell parser accepts ${path.basenam
   await winPs(['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(code,'utf16le').toString('base64')]);
 });
 test('tray menu has all required actions and user-session safety',async()=>{const source=await readFile(tray,'utf8');for(const text of ['Open dashboard','Start','Stop','Restart','View logs','Start all','Stop all','Open hub','Updates available','Run doctor','Settings','Start at login','Check for updates daily','About','Quit tray (services keep running)','Threading.Mutex','Threading.EventWaitHandle','Interval=10000'])assert.ok(source.includes(text),text);assert.ok(!source.includes('-Verb RunAs'));});
-for(const op of ['install','upgrade','adopt','rollback','uninstall','start','stop','restart'])test(`real helper -DryRun: ${op} (never elevates)`,{skip:process.platform!=='win32'},async t=>{
-  const f=await fixture(t);const operation={op,module:'graph'};
+for(const [module, op] of [...['install','upgrade','adopt','rollback','uninstall','start','stop','restart'].map(op=>['graph',op]), ['find','install']])test(`real helper -DryRun: ${op}${module === 'find' ? ' find' : ''} (never elevates)`,{skip:process.platform!=='win32'},async t=>{
+  const f=await fixture(t);const operation={op,module};
   if(['install','upgrade','adopt'].includes(op))Object.assign(operation,{version:'1.2.0',zip:path.join(f.paths.cache,'release.zip'),sha256:'a'.repeat(64)});
-  if(op==='install')Object.assign(operation,{port:8082,runtimeRoot:'D:\\SyntheticRuntime',memoryMb:8192});if(op==='adopt')operation.legacyServiceId='OptimizelyGraphLocal';if(op==='uninstall')operation.purge=true;
+  if(op==='install')Object.assign(operation,module==='find'
+    ? {port:8088,runtimeRoot:'D:\\SyntheticRuntime\\Find'}
+    : {port:8082,runtimeRoot:'D:\\SyntheticRuntime',memoryMb:8192});if(op==='adopt')operation.legacyServiceId='OptimizelyGraphLocal';if(op==='uninstall')operation.purge=true;
   const file=path.join(f.root,'plan.json'),text=JSON.stringify({version:1,createdAt:new Date().toISOString(),operations:[operation]});await writeFile(file,text);const hash=createHash('sha256').update(text).digest('hex');
-  const {stdout}=await winPs(['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',helper,'-PlanFile',file,'-PlanSha256',hash,'-DryRun'],{env:{...process.env,LOCALAPPDATA:f.root}});assert.match(stdout,new RegExp(`DRY RUN: ${op} graph`));assert.ok(!stdout.includes('ERROR:'));
+  const {stdout}=await winPs(['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',helper,'-PlanFile',file,'-PlanSha256',hash,'-DryRun'],{env:{...process.env,LOCALAPPDATA:f.root}});assert.match(stdout,new RegExp(`DRY RUN: ${op} ${module}`));assert.ok(!stdout.includes('ERROR:'));
+  if (module === 'find') {
+    assert.match(stdout, /port 8088; runtime .*\\Find.*register LdaFind/);
+    assert.doesNotMatch(stdout, /no legacy service|preserve tenants\.json|memoryMb|adopt/);
+  }
 });
 test('real helper DryRun rejects tampered plan hash before any steps',{skip:process.platform!=='win32'},async t=>{const f=await fixture(t),file=path.join(f.root,'bad.json');await writeFile(file,'{}');await assert.rejects(winPs(['-NoProfile','-NonInteractive','-File',helper,'-PlanFile',file,'-PlanSha256','0'.repeat(64),'-DryRun'],{env:{...process.env,LOCALAPPDATA:f.root}}),e=>e.stdout.includes('Plan SHA-256 mismatch')&&!e.stdout.includes('DRY RUN:'));});
 for(const fail of [false,true])test(`XML switch ${fail?'failure restores previous configuration':'success preserves port, memory and environment'} with all service/health calls faked`,{skip:process.platform!=='win32'},async t=>{

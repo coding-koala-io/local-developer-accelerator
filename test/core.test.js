@@ -11,10 +11,15 @@ import {validateEntries} from '../src/archive.js';
 import {buildPlan} from '../src/plan.js';
 import {renderStatus, statusExitCode} from '../src/output.js';
 import {fixture, releaseFixture, fakeEngine, installed} from './helpers.js';
-test('catalogue and aliases describe exactly the two v1 modules', () => {
-  assert.deepEqual(catalog.map(m => m.key), ['graph', 'assets']); assert.equal(moduleFor('dam').key, 'assets');
+test('catalogue and aliases describe all three modules', () => {
+  assert.deepEqual(catalog.map(m => m.key), ['graph', 'assets', 'find']); assert.equal(moduleFor('dam').key, 'assets');
   assert.equal(selectModules(['dam', 'assets']).length, 1); assert.throws(() => moduleFor('flags'), /Unknown module/);
   assert.equal(catalog[0].options.memoryMb.default, 8192);
+  const find = moduleFor('find');
+  assert.equal(find.port, 8088);
+  assert.equal(find.serviceId, 'LdaFind');
+  assert.deepEqual(find.legacyServiceIds, []);
+  assert.equal(find.repo, 'coding-koala-io/lda-find');
 });
 test('path layout and containment reject sibling-prefix escapes', () => {
   const p = getPaths({LOCALAPPDATA: 'C:\\Users\\Fake\\AppData\\Local'});
@@ -24,6 +29,7 @@ test('path layout and containment reject sibling-prefix escapes', () => {
 });
 test('configuration has typed defaults, atomic persistence and rejects unknown keys', async t => {
   const {config} = await fixture(t); assert.equal(await config.get('checkUpdates'), false); assert.equal(await config.get('hubPort'), 8080);
+  assert.equal(await config.get('ports.find'), 8088);
   await config.set('ports.graph', '9000'); assert.equal(await config.get('ports.graph'), 9000); await config.set('checkUpdates', 'true'); assert.equal(await config.get('checkUpdates'), true);
   await assert.rejects(config.set('ports.flags', 1)); await assert.rejects(config.set('hubPort', 0)); await assert.rejects(config.set('checkUpdates', 'yes'));
 });
@@ -64,11 +70,14 @@ test('plans validate options and contain only fixed operation fields', async t =
   assert.throws(() => buildPlan([install, install], {cache: paths.cache}), /once/);
 });
 test('status derives state and makes no release call by default', async t => {
-  const f = await fixture(t); const {engine} = fakeEngine(f, {releases: {latest: () => {throw Error('network forbidden');}}}); const rows = await engine.status(); assert.equal(rows.length, 2); assert.equal(rows[0].latest, undefined);
+  const f = await fixture(t); const {engine} = fakeEngine(f, {releases: {latest: () => {throw Error('network forbidden');}}}); const rows = await engine.status(); assert.equal(rows.length, 3); assert.equal(rows[0].latest, undefined);
 });
 for (const options of [{tty:false}, {tty:true,env:{NO_COLOR:''}}, {tty:true,unicode:false}, {tty:true,unicode:true,env:{},links: (label,url) => label}]) test(`status rendering: ${JSON.stringify(options)}`, async t => {
-  const f = await fixture(t), {engine} = fakeEngine(f, {states: {graph: installed()}}); const rows = await engine.status({checkUpdates:true}), text = renderStatus(rows, options);
+  const f = await fixture(t), {engine} = fakeEngine(f, {states: {graph: installed(), find: installed(moduleFor('find'))}}); const rows = await engine.status({checkUpdates:true}), text = renderStatus(rows, options);
   assert.match(text, /MODULE\s+STATE\s+PORT/); assert.match(text, /http:\/\/localhost:8082\//); assert.match(text, /1.0.0/);
+  assert.match(text, /LDA Local Find.*running.*8088.*ok 12ms/);
+  assert.doesNotMatch(text, /localhost:8088|compatible with Optimizely CMS/i);
+  for (const mod of catalog) assert.ok(text.split('\n').some(line => line.includes(mod.product) && line.includes(mod.cmsLine)), mod.key);
   if (!options.tty || options.env?.NO_COLOR !== undefined) assert.ok(!/\x1b/.test(text));
   if (options.unicode === false || !options.tty || options.env?.NO_COLOR !== undefined) assert.match(text, /\(update\)/);
   assert.equal(statusExitCode(rows), 0); rows[0].health.ok=false; assert.equal(statusExitCode(rows),1);

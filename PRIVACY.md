@@ -1,4 +1,4 @@
-# Privacy — Local Developer Accelerator (LDA), compatible with Optimizely CMS 13
+# Privacy — Local Developer Accelerator (LDA)
 
 Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 

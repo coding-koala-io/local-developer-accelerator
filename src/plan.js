@@ -31,5 +31,5 @@ export function buildPlan(operations, {cache, now = () => new Date()} = {}) {
   return {version: 1, createdAt: now().toISOString(), operations};
 }
 export function planSteps(plan) {
-  return plan.operations.map(o => `${o.op} ${o.module}${o.version ? ` ${o.version} (verify SHA-256; code side-by-side)` : ''}${o.port ? `; port ${o.port}; data ${o.runtimeRoot}` : ''}${o.purge ? '; permanently remove runtime data' : ''}${o.op === 'upgrade' ? '; preserve settings; restore previous XML on failed health check' : ''}`);
+  return plan.operations.map(o => `${o.op} ${o.module}${o.version ? ` ${o.version} (verify SHA-256; code side-by-side)` : ''}${o.port ? `; port ${o.port}; data ${o.runtimeRoot}; register ${moduleFor(o.module).serviceId}` : ''}${o.purge ? '; permanently remove runtime data' : ''}${o.op === 'upgrade' ? '; preserve settings; restore previous XML on failed health check' : ''}`);
 }

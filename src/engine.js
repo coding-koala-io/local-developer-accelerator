@@ -27,10 +27,10 @@ export function createEngine(deps = {}) {
   const knownReleases = new Map();
   let lastBase = null;
   // Legacy services (old ids or /health without product) show version 'legacy' and never an update.
-  function decorate({s, latest, updateError}, h) {
+  function decorate({mod, s, latest, updateError}, h) {
     const version = s.legacy ? 'legacy' : s.version || (h?.legacy ? 'legacy' : h?.version);
     const comparable = !!version && version !== 'legacy' && versionPattern.test(version);
-    return {...s, version, dataVersion: h?.dataVersion, health: h, dashboard: `http://localhost:${s.port}/`, latest, update: !!(latest && s.installed && comparable && compareVersions(latest, version) > 0), updateError};
+    return {...s, version, dataVersion: h?.dataVersion, health: h, ...(mod.hasDashboard ? {dashboard: `http://localhost:${s.port}/`} : {}), latest, update: !!(latest && s.installed && comparable && compareVersions(latest, version) > 0), updateError};
   }
   const check = (s, mod) => s.installed ? health(s.port, {expectedProduct: mod}) : null;
   async function status({checkUpdates = false, fresh = false} = {}) {
@@ -39,7 +39,7 @@ export function createEngine(deps = {}) {
       const s = await services.describe(mod, rows); if (!s.installed) s.port = c.ports[mod.key];
       let latest = knownReleases.get(mod.key) || await releases.knownLatest?.(mod), updateError;
       if (checkUpdates || c.checkUpdates) {try {latest = await releases.latest(mod, {fresh}); knownReleases.set(mod.key, latest);} catch (e) {updateError = e.message;}}
-      return {s, latest, updateError};
+      return {mod, s, latest, updateError};
     }));
     const result = await Promise.all(base.map(async b => decorate(b, await check(b.s, b.s.module))));
     if (checkUpdates || c.checkUpdates) lastUpdateCheck = new Date().toISOString();
@@ -52,7 +52,7 @@ export function createEngine(deps = {}) {
   }
   async function writeTray(rows) {
     const c = await config.read(); await mkdir(paths.state, {recursive: true});
-    const data = {modules: rows.filter(r => r.installed).map(r => ({key: r.module, product: r.product, port: r.port, serviceId: r.serviceId, update: r.update, legacy: !!r.legacy, runtimeRoot: r.runtimeRoot})), total: catalog.length, hubPort: c.hubPort, checkUpdates: c.checkUpdates, lastUpdateCheck, about: trayNotice(paths.data), cli: fileURLToPath(new URL('../bin/lda.js', import.meta.url)), node: process.execPath};
+    const data = {modules: rows.filter(r => r.installed).map(r => ({key: r.module, product: r.product, cmsLine: moduleFor(r.module).cmsLine, port: r.port, serviceId: r.serviceId, hasDashboard: !!r.dashboard, update: r.update, legacy: !!r.legacy, runtimeRoot: r.runtimeRoot})), total: catalog.length, hubPort: c.hubPort, checkUpdates: c.checkUpdates, lastUpdateCheck, about: trayNotice(paths.data), cli: fileURLToPath(new URL('../bin/lda.js', import.meta.url)), node: process.execPath};
     await writeFile(paths.tray, JSON.stringify(data, null, 2)); return data;
   }
   async function checkPort(port, module) {
@@ -93,7 +93,7 @@ export function createEngine(deps = {}) {
         if (!opts.version && compareVersions(b.version, s.version) <= 0) continue;
         // An unknown data version is treated as 1, the first data format.
         let dataVersion = s.dataVersion;
-        if (!Number.isInteger(dataVersion)) {try {dataVersion = JSON.parse(await read(runtimePaths(s.runtimeRoot, s.serviceId).tenants, 'utf8')).dataVersion;} catch {dataVersion = undefined;}}
+        if (!Number.isInteger(dataVersion) && mod.hasTenants) {try {dataVersion = JSON.parse(await read(runtimePaths(s.runtimeRoot, s.serviceId).tenants, 'utf8')).dataVersion;} catch {dataVersion = undefined;}}
         if (!Number.isInteger(dataVersion)) dataVersion = 1;
         if (b.dataVersion > dataVersion && !opts.yes && !(await ask(`Upgrading ${mod.key} changes data version ${dataVersion} to ${b.dataVersion}. Back up ${s.runtimeRoot} first. Continue? [y/N] `))) throw new Error('Data upgrade not confirmed. Back up the runtime folder and retry with --yes.');
         ops.push({op: action, module: mod.key, ...releaseFields(b)});
@@ -121,14 +121,15 @@ export function createEngine(deps = {}) {
     const mod = moduleFor(key), s = (await status()).find(r => r.module === mod.key);
     if (!s.installed) return 'No service logs yet. Install the module first.';
     const p = runtimePaths(s.runtimeRoot, s.serviceId), output = [];
+    const requestLog = s.dashboard ? [`Dashboard request log: ${s.dashboard}#request-log`] : [];
     for (const suffix of ['out', 'err', 'wrapper']) {
       const file = pathFor(p.logs, `${s.serviceId}.${suffix}.log`);
       try {output.push(`--- ${file} ---\n${(await read(file, 'utf8')).split(/\r?\n/).slice(-Number(lines)).join('\n')}`);} catch (e) {
-        if (['EACCES', 'EPERM'].includes(e.code)) return `Access denied. In an elevated PowerShell, run:\nGet-Content -LiteralPath '${file.replaceAll("'", "''")}' -Tail ${Number(lines)} -Wait\nDashboard request log: ${s.dashboard}#request-log`;
+        if (['EACCES', 'EPERM'].includes(e.code)) return [`Access denied. In an elevated PowerShell, run:\nGet-Content -LiteralPath '${file.replaceAll("'", "''")}' -Tail ${Number(lines)} -Wait`, ...requestLog].join('\n');
         if (e.code !== 'ENOENT') throw e;
       }
     }
-    return output.join('\n') || `No wrapper logs yet. Dashboard request log: ${s.dashboard}#request-log`;
+    return output.join('\n') || ['No wrapper logs yet.', ...requestLog].join(' ');
   }
   async function run(keys, opts = {}) {
     const selected = keys.includes('all') ? catalog : selectModules(keys), rows = await status(), c = await config.read();
@@ -144,7 +145,8 @@ export function createEngine(deps = {}) {
       }
       const root = path.join(paths.run, mod.runtimeFolder); await mkdir(root, {recursive: true});
       for (const folder of ['data', 'logs']) await mkdir(path.join(root, folder), {recursive: true});
-      try {await access(path.join(root, 'tenants.json'));} catch {await (deps.initialize || initializeRuntime)(code, root, port);}
+      const tenantsExist = mod.hasTenants && await access(path.join(root, 'tenants.json')).then(() => true, () => false);
+      if (!tenantsExist) await (deps.initialize || initializeRuntime)(code, root, port);
       prepared.push({mod, port, code, root});
     }
     const children = [];
@@ -152,7 +154,10 @@ export function createEngine(deps = {}) {
     try {
       for (const {mod, port, code, root} of prepared) {
         const args = [...(mod.options.memoryMb ? [`--max-old-space-size=${mod.options.memoryMb.default}`] : []), pathFor(code, 'src', 'server.js')];
-        const child = spawn(process.execPath, args, {cwd: code, env: {...process.env, PORT: String(port), HOST: '127.0.0.1', DATA_DIR: path.join(root, 'data'), LOG_DIR: path.join(root, 'logs'), TENANTS_FILE: path.join(root, 'tenants.json')}, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true});
+        const data = path.join(root, 'data');
+        const env = {...process.env, PORT: String(port), HOST: '127.0.0.1', DATA_DIR: data, LOG_DIR: path.join(root, 'logs'),
+          ...(mod.hasTenants ? {TENANTS_FILE: path.join(root, 'tenants.json')} : {DATA_ROOT: data})};
+        const child = spawn(process.execPath, args, {cwd: code, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true});
         children.push(child);
         for (const stream of [child.stdout, child.stderr]) {
           let pending = ''; stream?.setEncoding('utf8'); stream?.on('data', chunk => {pending += chunk; const lines = pending.split(/\r?\n/); pending = lines.pop(); for (const line of lines) progress(`[${mod.key}] ${line}`);}); stream?.on('end', () => {if (pending) progress(`[${mod.key}] ${pending}`);});
@@ -161,6 +166,12 @@ export function createEngine(deps = {}) {
     } catch (e) {stop(); throw e;}
     return {children, stop};
   }
-  return {paths, config, releases, services, platform, status, quickStatus, act, logs, run, writeTray, subscribe(cb) {listeners.add(cb); return () => listeners.delete(cb);}, get lastUpdateCheck() {return lastUpdateCheck;}, async open(key) { const c = await config.read(); const s = key === 'hub' ? {dashboard: `http://localhost:${c.hubPort}/`} : (await status()).find(s => s.module === moduleFor(key).key); return open(s.dashboard); }};
+  async function openDashboard(key) {
+    if (key === 'hub') return open(`http://localhost:${(await config.read()).hubPort}/`);
+    const mod = moduleFor(key);
+    if (!mod.hasDashboard) throw new Error(`${mod.product} has no dashboard. Run lda status for service health.`);
+    return open((await status()).find(s => s.module === mod.key).dashboard);
+  }
+  return {paths, config, releases, services, platform, status, quickStatus, act, logs, run, writeTray, subscribe(cb) {listeners.add(cb); return () => listeners.delete(cb);}, get lastUpdateCheck() {return lastUpdateCheck;}, open: openDashboard};
 }
 function pathFor(root, ...parts) { return /^[A-Za-z]:[\\/]|^\\\\/.test(root) ? path.win32.join(root, ...parts) : path.join(root, ...parts); }

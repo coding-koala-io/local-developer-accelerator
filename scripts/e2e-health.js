@@ -3,7 +3,8 @@ import {networkInterfaces} from 'node:os';
 import {setTimeout as delay} from 'node:timers/promises';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
-const services = [[8082, 'graph'], [8083, 'assets']];
+import {catalog} from '../src/catalog.js';
+const services = catalog.map(({port, key}) => [port, key]);
 export async function healthy(port, product) {
   try {
     const r = await fetch(`http://127.0.0.1:${port}/health`, {signal: AbortSignal.timeout(1500), redirect: 'error'});
@@ -40,6 +41,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   try {
     if (process.argv[2] === 'lan') await checkLanBindings();
     else await waitForServices({closed: process.argv[2] === 'closed', timeout: process.argv[2] === 'closed' ? 30000 : 120000});
-    console.log(`Both service ports: ${process.argv[2] || 'healthy'}`);
+    console.log(`All service ports: ${process.argv[2] || 'healthy'}`);
   } catch (error) {console.error(error.message); process.exitCode = 1;}
 }

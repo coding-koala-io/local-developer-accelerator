@@ -10,11 +10,14 @@ lda about
 lda run all --accept-notice
 ```
 
-Graph uses <http://127.0.0.1:8082/>; Assets uses <http://127.0.0.1:8083/>.
-Both document `GET /health`, also used by `lda status` for Windows services.
+Local Graph uses <http://127.0.0.1:8082/> and Local Assets uses <http://127.0.0.1:8083/>.
+Made for CMS 13 sites. Not tested with CMS 12.
+Local Find listens on `127.0.0.1:8088`. Made for CMS 12 sites that use Search & Navigation.
+All three answer `GET /health`,
+also used by `lda status` for Windows services.
 Foreground output contains prefixed service logs. Stop with **Ctrl+C**, or send
 `SIGTERM` to the `lda run` process (`kill -TERM <pid>` for a background run).
-The CLI waits for both children to exit. `lda stop`, install/upgrade/rollback/
+The CLI waits for all child processes to exit. `lda stop`, install/upgrade/rollback/
 uninstall as services, adopt, tray and Windows approval are **Windows only**.
 Foreground data lives under `~/.local/share/Coding Koala/Local Developer Accelerator/run`.
 Service status/management commands describe Windows services, not foreground jobs.

@@ -54,14 +54,15 @@ test('unsafe ZIPs never reach extraction on Linux', async t => {
   }}), /Unsafe archive/);
   assert.equal(extracted, false);
 });
-test('foreground SIGTERM waits for both children and removes signal handlers', async () => {
-  const signals = new EventEmitter(), a = child(), b = child();
+test('foreground SIGTERM waits for all children and removes signal handlers', async () => {
+  const signals = new EventEmitter(), a = child(), b = child(), c = child();
   let finished = false;
-  const done = superviseForeground([a, b], {signals}).then(code => {finished = true; return code;});
+  const done = superviseForeground([a, b, c], {signals}).then(code => {finished = true; return code;});
   signals.emit('SIGTERM'); signals.emit('SIGINT');
-  assert.deepEqual(a.kills, ['SIGTERM']); assert.deepEqual(b.kills, ['SIGTERM']);
+  for (const service of [a, b, c]) assert.deepEqual(service.kills, ['SIGTERM']);
   a.emit('exit', 0); await Promise.resolve(); assert.equal(finished, false);
-  b.emit('exit', 0); assert.equal(await done, 0);
+  b.emit('exit', 0); await Promise.resolve(); assert.equal(finished, false);
+  c.emit('exit', 0); assert.equal(await done, 0);
   assert.equal(signals.listenerCount('SIGTERM'), 0); assert.equal(signals.listenerCount('SIGINT'), 0);
 });
 test('an early foreground failure stops its sibling and keeps the failing status', async () => {
@@ -102,10 +103,15 @@ test('Linux Windows-only commands never query services, download, or elevate', a
   assert.equal(r.unsupported, true); assert.match(r.log[0], /Windows only/);
   await assert.rejects(powershell('unused', {platform: 'linux', runner: forbidden}), /Windows only.*lda run all/);
 });
-test('CI readiness requires both services and reports which service timed out', async () => {
-  let now = 0, probes = 0;
-  await assert.rejects(waitForServices({timeout: 2000, now: () => now, sleep: async ms => {now += ms;}, probe: async port => {probes++; return port === 8082;}}), /127.0.0.1:8083/);
-  assert.equal(now, 2000); assert.equal(probes, 6);
-  let rounds = 0;
-  await waitForServices({probe: async port => port === 8082 || ++rounds === 2, sleep: async () => {}});
+test('CI readiness probes all three services and reports the Find timeout on loopback', async () => {
+  let now = 0;
+  const probes = [];
+  await assert.rejects(waitForServices({timeout: 2000, now: () => now, sleep: async ms => {now += ms;}, probe: async (port, product) => {
+    probes.push([port, product]);
+    return port !== 8088;
+  }}), /127\.0\.0\.1:8088$/);
+  assert.deepEqual(probes, Array.from({length: 3}, () => [[8082, 'graph'], [8083, 'assets'], [8088, 'find']]).flat());
+  assert.equal(now, 2000);
+  let findProbes = 0;
+  await waitForServices({probe: async port => port !== 8088 || ++findProbes === 2, sleep: async () => {}});
 });

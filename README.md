@@ -1,5 +1,5 @@
 > **Development and research use only. Not designed or tested for production use.**
-> Local Developer Accelerator (LDA), compatible with Optimizely CMS 13, runs local stand-ins for Optimizely cloud services on a single
+> The CLI runs local stand-ins for Optimizely cloud services on a single
 > developer machine. It is not a replacement for any Optimizely service: its
 > behaviour, limits and performance differ, so always test against the real services
 > before release. Keep it bound to localhost and never expose it to a network.
@@ -11,11 +11,9 @@
 
 # Local Developer Accelerator
 
-Made for CMS 13 sites. Not tested with CMS 12.
-
 Watch the 43-second demo: https://youtu.be/uIBKd3OSXro
 
-Free and open source (Apache 2.0) · Built by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator) · No telemetry ([network calls](PRIVACY.md#network-connections))
+The CLI is free and open source (Apache 2.0) · Built by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator) · No telemetry ([network calls](PRIVACY.md#network-connections))
 Node 24 or newer. Windows services, optional tray and a loopback-only hub.
 Tested on Windows, WSL and Linux (Ubuntu, in CI). macOS: not verified yet. Docker: see [docs/docker.md](docs/docker.md).
 
@@ -56,6 +54,8 @@ lda install graph assets
 lda status
 ```
 
+For a CMS 12 site that uses Search & Navigation, run `lda install find`.
+
 Already running the services from an older manual install? Use `lda adopt`.
 `lda tray` starts the tray icon.
 
@@ -70,10 +70,11 @@ For automation, read `lda about`, then pass `--accept-notice` or set
 `LDA_ACCEPT_NOTICE=1`. Acceptance is saved per CLI major version. `--yes` does
 not accept the notice. Non-TTY and CI runs print status rather than opening Ink.
 
-| Module | Compatibility | Default port | Service |
+| Tool | Compatibility | Default port | Service |
 | --- | --- | --- | --- |
-| `graph` | Optimizely Graph | 8082 | LdaGraph |
-| `assets` (`dam` alias) | Optimizely CMS DAM picker | 8083 | LdaAssets |
+| Local Graph (`graph`) | Optimizely Graph. Made for CMS 13 sites. Not tested with CMS 12. | 8082 | LdaGraph |
+| Local Assets (`assets`, alias `dam`) | Optimizely CMS DAM picker. Made for CMS 13 sites. Not tested with CMS 12. | 8083 | LdaAssets |
+| Local Find (`find`) | Optimizely Search & Navigation (Find). Made for CMS 12 sites that use Search & Navigation. | 8088 | LdaFind |
 
 ## Getting started from source
 
@@ -112,18 +113,18 @@ Running the CLI, tests and foreground tools does not. Linking/unlinking needs wr
 | Command | Purpose |
 | --- | --- |
 | `list` | Available and installed releases |
-| `status [--check-updates]` | Service state, version, port, health, dashboard |
+| `status [--check-updates]` | Service state, version, port, health and dashboard where available |
 | `install <mod...>` | Download, verify, one Windows approval for the batch |
 | `upgrade [mod...] [--all] [--check] [--version x.y.z]` | Check or apply upgrades |
 | `rollback <mod>` | Return to the previous code version |
 | `uninstall <mod> [--purge]` | Retain data unless purge is explicitly confirmed |
 | `start/stop/restart <mod...> [--all]` | One approval per batch |
 | `adopt [mod...] [--version x.y.z] [--from zip]` | Migrate legacy service registration without moving data |
-| `open <mod>/hub` | Open the local dashboard |
+| `open <mod>/hub` | Open the Local Graph or Local Assets dashboard, or the hub |
 | `logs <mod> [-n 50] [-f]` | Wrapper/server console logs; poll when following |
 | `run <mod>/all [--port n]` | Foreground, no administrator access |
 | `doctor [--online]` | Diagnostics with suggested fixes; online clock check opt-in |
-| `config get [key]`, `config set <key> <value>` | checkUpdates, hubPort, ports.graph, ports.assets |
+| `config get [key]`, `config set <key> <value>` | checkUpdates, hubPort, ports.graph, ports.assets, ports.find |
 | `tray [--at-login] [--remove-at-login] [--stop]` | User-session tray and HKCU login entry |
 | `hub [--port 8080] [--open]` | Browser manager, bound only to 127.0.0.1 |
 | `about/privacy/licence` | Read notices without accepting them |
@@ -159,7 +160,7 @@ make status exit 1; a cancelled Windows approval exits 2.
 
 ## Releases, upgrades and rollback
 
-Releases come from `coding-koala-io/lda-graph` and `coding-koala-io/lda-assets`.
+Releases come from `coding-koala-io/lda-graph`, `coding-koala-io/lda-assets` and `coding-koala-io/lda-find`.
 ZIPs must be named `lda-<key>-<version>.zip`, with adjacent `manifest.json` and
 `SHA256SUMS`. Both hashes, module identity, version and Node requirements are
 checked before elevation; the elevated helper checks the ZIP again. WinSW 2.12.0
@@ -221,16 +222,18 @@ services running; Stop all is separate. Daily update checks are off by default.
 `lda tray --stop` signals only the tray.
 
 `lda hub --open` opens module cards, health, service actions and log tails.
+The Local Find card shows service health. Dashboard links are available for Local Graph and Local Assets.
 Mutating requests require a process-specific CSRF token and local Origin/Host.
 Windows approval appears on your desktop. No remotely accessible bind option exists.
-In Ink, arrows select; `o` opens, `s` starts/stops, `r` restarts, `i` installs,
+In Ink, arrows select; `o` opens a dashboard when available, `s` starts/stops, `r` restarts, `i` installs,
 `u` checks/upgrades, `l` tails logs, `a` toggles all-module actions, `?` helps, `q` quits.
 
 ## Storage and privacy
 
 Code: `C:\Program Files\Coding Koala\Local Developer Accelerator\<Module>\<version>`.
 Runtime: `C:\ProgramData\Coding Koala\Local Developer Accelerator\<Module>`
-(or `--data-dir`), with tenants.json, data, logs and service wrapper/XML/logs.
+(or `--data-dir`), with data, logs and service wrapper/XML/logs.
+Local Graph and Local Assets also store `tenants.json` there.
 Only the elevated helper writes service code. Runtime ACLs are replaced before secrets.
 Created `Coding Koala` folders get a locked ACL (SYSTEM/Administrators full,
 Users/LocalService read and run).

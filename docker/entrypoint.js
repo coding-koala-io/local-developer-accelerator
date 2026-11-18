@@ -34,7 +34,7 @@ export async function startContainer({interfaces = networkInterfaces(), relay = 
   const stop = () => {stopping = true; child?.kill('SIGTERM');};
   signals.once('SIGINT', stop); signals.once('SIGTERM', stop);
   try {
-    for (const host of addresses) for (const port of [8082, 8083]) relays.push(await relay(host, port));
+    for (const host of addresses) for (const port of [8082, 8083, 8088]) relays.push(await relay(host, port));
     if (stopping) return 0;
     child = launch('lda', args, {stdio: 'inherit'});
     return await new Promise((resolve, reject) => {

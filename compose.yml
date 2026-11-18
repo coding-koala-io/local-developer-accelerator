@@ -4,6 +4,7 @@ services:
     ports:
       - "127.0.0.1:8082:8082"
       - "127.0.0.1:8083:8083"
+      - "127.0.0.1:8088:8088"
     environment:
       # Read `lda about` (or the repository LEGAL-NOTICE.md) before running.
       LDA_ACCEPT_NOTICE: "1"

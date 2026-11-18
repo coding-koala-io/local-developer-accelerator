@@ -1,5 +1,5 @@
 #!/bin/sh
-# Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 - one-line installer for macOS and Linux.
+# Local Developer Accelerator (LDA) - one-line installer for macOS and Linux.
 #   curl -fsSL https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/install.sh | sh
 # Options (environment variables):
 #   LDA_VERSION      pin a release, for example v1.1.0 (default: the latest release)
@@ -24,13 +24,17 @@ branding_allowed() {
   [ -t 1 ] && [ "${CI+x}" != x ] && [ "${LDA_QUIET:-}" != 1 ]
 }
 
-printf '\nLocal Developer Accelerator (LDA), compatible with Optimizely CMS 13'
-if branding_allowed; then printf ' - built by Coding Koala'; fi
+printf '\nLocal Developer Accelerator (LDA)'
+if branding_allowed; then printf ': Free developer tools, built by Coding Koala'; fi
 printf '\n'
 printf 'Development and research use only. Not designed or tested for production use.\n'
 printf -- '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.\n'
 printf -- '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.\n'
 printf -- '- Not affiliated with or endorsed by Optimizely.\n\n'
+printf 'Local Graph: Made for CMS 13 sites. Not tested with CMS 12.\n'
+printf 'Local Assets: Made for CMS 13 sites. Not tested with CMS 12.\n'
+printf 'Local Find: Made for CMS 12 sites that use Search & Navigation.\n'
+printf '\n'
 
 # 1. Tools: curl, Node.js 24+, npm, a SHA-256 tool. Node.js is never installed automatically.
 NODE_HELP="Install Node.js 24 or newer (https://nodejs.org, or your package manager, for example: brew install node), open a new terminal and run this command again."
@@ -132,9 +136,10 @@ INSTALLED=$("$LDA" --version 2>/dev/null || true)
 printf '\nInstalled lda %s.\n' "$INSTALLED"
 case ":$PATH:" in *":$PREFIX/bin:"*) ;; *) printf 'Note: %s/bin is not on PATH. Add it to PATH, then open a new terminal.\n' "$PREFIX" ;; esac
 printf '\nNext steps:\n'
-printf '  lda run all                run Graph and Assets; Ctrl+C or SIGTERM stops both (macOS/Linux)\n'
+printf '  lda run all                run all local services on macOS/Linux; Ctrl+C or SIGTERM stops them\n'
 printf '  lda                        open the manager (first run asks you to accept the notice)\n'
-printf '  lda install graph assets   Windows only: install LDA Local Graph and LDA Local Assets as services\n'
+printf '  lda install graph assets   Windows only: install Local Graph and Local Assets as services\n'
+printf '  lda install find           Windows only: install Local Find as a service\n'
 printf '  lda adopt                  Windows only: take over an older service install without moving its data\n'
 printf '  lda tray                   Windows only: start the tray icon\n'
 printf '  lda self-update            update this CLI later\n'

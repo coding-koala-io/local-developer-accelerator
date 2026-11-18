@@ -9,9 +9,12 @@ Compose sets `LDA_ACCEPT_NOTICE=1` to accept that notice for automation.
    docker compose up
    ```
 
-2. Open Graph at <http://localhost:8082/> and Assets at <http://localhost:8083/>.
+2. Open Local Graph at <http://localhost:8082/> and Local Assets at <http://localhost:8083/>.
+   Made for CMS 13 sites. Not tested with CMS 12.
+   Local Find listens on port 8088. Made for CMS 12 sites that use Search & Navigation.
    Initial startup downloads and verifies the service releases from GitHub.
-   Both services must answer `/health`; Compose reports the image healthcheck.
+   All three services must answer `/health`;
+   Compose reports the image healthcheck.
 
 3. For a CMS 13 site running on this host, open the Graph tenant and copy its
    **Connect** settings into `appsettings.Development.json`, with
@@ -28,7 +31,7 @@ Compose sets `LDA_ACCEPT_NOTICE=1` to accept that notice for automation.
    To **delete that data**, run `docker compose down -v`.
 
 The image uses Node 24 and runs as the unprivileged `node` user. Only host
-`127.0.0.1:8082` and `127.0.0.1:8083` are published. An image-only TCP relay on
+`127.0.0.1:8082`, `127.0.0.1:8083` and `127.0.0.1:8088` are published. An image-only TCP relay on
 the container interface forwards to the services' private loopback listeners;
 normal `lda run` keeps its loopback binding. No admin credentials are baked into
 the image, and no telemetry is added. Downloads are the CLI's npm dependencies

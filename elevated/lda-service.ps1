@@ -12,8 +12,9 @@ $utf8 = New-Object Text.UTF8Encoding($false)
 $OutputEncoding = $utf8
 # CATALOG-BEGIN (kept identical to src/catalog.js by tests)
 $Modules = @{
-    graph = @{ Product='LDA Local Graph'; Description='LDA Local Graph: local development stand-in compatible with Optimizely Graph. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely Graph'; Repo='coding-koala-io/lda-graph'; Port=8082; ServiceId='LdaGraph'; LegacyServiceId='OptimizelyGraphLocal'; RuntimeFolder='Graph'; MemoryMb=8192 }
-    assets = @{ Product='LDA Local Assets'; Description='LDA Local Assets: local development stand-in compatible with Optimizely DAM. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely CMS DAM picker'; Repo='coding-koala-io/lda-assets'; Port=8083; ServiceId='LdaAssets'; LegacyServiceId='OptimizelyDamLocal'; RuntimeFolder='Assets'; MemoryMb=0 }
+    graph = @{ Product='LDA Local Graph'; Description='LDA Local Graph: local development stand-in compatible with Optimizely Graph. Made for CMS 13 sites. Not tested with CMS 12. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely Graph'; Repo='coding-koala-io/lda-graph'; Port=8082; ServiceId='LdaGraph'; LegacyServiceId='OptimizelyGraphLocal'; RuntimeFolder='Graph'; HasTenants=$true; MemoryMb=8192 }
+    assets = @{ Product='LDA Local Assets'; Description='LDA Local Assets: local development stand-in compatible with Optimizely DAM. Made for CMS 13 sites. Not tested with CMS 12. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely CMS DAM picker'; Repo='coding-koala-io/lda-assets'; Port=8083; ServiceId='LdaAssets'; LegacyServiceId='OptimizelyDamLocal'; RuntimeFolder='Assets'; HasTenants=$true; MemoryMb=0 }
+    find = @{ Product='LDA Local Find'; Description='LDA Local Find: local development stand-in compatible with Optimizely Search & Navigation (Find). Made for CMS 12 sites that use Search & Navigation. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely Search & Navigation (Find)'; Repo='coding-koala-io/lda-find'; Port=8088; ServiceId='LdaFind'; LegacyServiceId=''; RuntimeFolder='Find'; HasTenants=$false; MemoryMb=0 }
 }
 # CATALOG-END
 $wrapperUrl = 'https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe'
@@ -320,6 +321,7 @@ function Assert-NoRuntimeOverlap([string]$Root, [string]$Module) {
     foreach ($key in @($Modules.Keys)) {
         if ($key -eq $Module) {continue}
         foreach ($id in @($Modules[$key].ServiceId, $Modules[$key].LegacyServiceId)) {
+            if (!$id) {continue}
             $o = Get-ServiceRoot $id
             if ($o) {$others.Add(@{Module=$key; Root=$o})}
         }
@@ -613,7 +615,9 @@ function Install-Module($Op,[string]$Code,[switch]$Adopting) {
     $generated=Invoke-ModuleNode $Code 'xml' $options
     [xml]$x=$generated
     if ($x.service.id -ne $ctx.Id) {throw 'Module generated the wrong service id.'}
-    $x.service.description = $mod.Description
+    $description = $x.service.SelectSingleNode('description')
+    if (!$description) {$description = $x.service.AppendChild($x.CreateElement('description'))}
+    $description.InnerText = $mod.Description
     $generated = $x.OuterXml
     New-RuntimeRoot $ctx.Root
     Set-RestrictedDirectoryAcl $ctx.Root
@@ -622,8 +626,8 @@ function Install-Module($Op,[string]$Code,[switch]$Adopting) {
     New-RuntimeFolders $ctx
     Set-RuntimePermissions $ctx
     Assert-RuntimeTree $ctx.Root $ctx.Id
-    # DACL is already exact before any tenant credentials are generated. Preserve existing tenants.
-    if (!(Test-Path -LiteralPath (Join-Path $ctx.Root 'tenants.json'))) {Invoke-ModuleNode $Code 'init' $options | Out-Null}
+    # Initialize after applying the runtime DACL. Preserve existing tenant files.
+    if (!$mod.HasTenants -or !(Test-Path -LiteralPath (Join-Path $ctx.Root 'tenants.json'))) {Invoke-ModuleNode $Code 'init' $options | Out-Null}
     if (!(Test-Path -LiteralPath $ctx.Wrapper)) {
         [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         $download=$ctx.Wrapper+'.download'
@@ -925,7 +929,7 @@ function Write-VersionRecord([string]$Module,[string]$Current,[string]$Previous)
 function Invoke-Operation($Op) {
     $mod=$Modules[$Op.module]
     if ($Op.op -eq 'install') {
-        if (Get-ServiceRow $mod.LegacyServiceId) {throw "Legacy install found. Run lda adopt $($Op.module)."}
+        if ($mod.LegacyServiceId -and (Get-ServiceRow $mod.LegacyServiceId)) {throw "Legacy install found. Run lda adopt $($Op.module)."}
         # Ownership/rights/identity/runtime/port checks precede extracting code or changing anything.
         Assert-RuntimeChain $Op.runtimeRoot
         Assert-RuntimeLayout $Op.runtimeRoot
@@ -1007,7 +1011,7 @@ function Validate-Plan($Plan) {
             $memory=Get-Field $o 'memoryMb'
             if ($null -ne $memory -and ($Modules[$o.module].MemoryMb -eq 0 -or $memory -isnot [int] -or $memory -lt 1024 -or $memory -gt 65536)) {throw 'Invalid memoryMb.'}
         }
-        if ($o.op -eq 'adopt' -and $o.legacyServiceId -ne $Modules[$o.module].LegacyServiceId) {throw 'Invalid legacy service id.'}
+        if ($o.op -eq 'adopt' -and (!$Modules[$o.module].LegacyServiceId -or $o.legacyServiceId -ne $Modules[$o.module].LegacyServiceId)) {throw 'Invalid legacy service id.'}
         if ($o.op -eq 'uninstall' -and $o.purge -isnot [bool]) {throw 'purge must be boolean.'}
     }
     $installs=@($Plan.operations | Where-Object {$_.op -eq 'install'})
@@ -1120,7 +1124,7 @@ function Invoke-DryRunChecks($Op) {
     Write-DryLine "Checks for $($Op.op) $($Op.module) (read-only, without admin):"
     $root=''; $id=$mod.ServiceId
     if ($Op.op -eq 'install') {
-        Invoke-DryCheck "no legacy service $($mod.LegacyServiceId)" { if (Get-ServiceRow $mod.LegacyServiceId) {throw "Legacy install found. Run lda adopt $($Op.module)."} }
+        if ($mod.LegacyServiceId) {Invoke-DryCheck "no legacy service $($mod.LegacyServiceId)" { if (Get-ServiceRow $mod.LegacyServiceId) {throw "Legacy install found. Run lda adopt $($Op.module)."} }}
         Invoke-DryCheck "service $($mod.ServiceId) is not installed yet" { if (Get-ServiceRow $mod.ServiceId) {throw 'Service already installed. Use lda upgrade.'} }
         $root=Full $Op.runtimeRoot
     } elseif ($Op.op -eq 'adopt') {
@@ -1179,7 +1183,12 @@ try {
             if ($DryRun) {
                 $line="DRY RUN: $($op.op) $($op.module); validate owner and write access of every runtime and code folder first"
                 if ($op.op -in @('install','upgrade','adopt')) {$line+='; re-verify zip SHA-256; reject archive traversal/links; stage code in Program Files'}
-                if ($op.op -eq 'install') {$line+="; port $($op.port); runtime $($op.runtimeRoot) (trusted folder chain; empty or runtime layout only; no overlap with another module; create missing folders with a fixed DACL); write runtime marker; replace DACL before credentials; preserve tenants.json; pinned WinSW v2.12.0; trusted node.exe and its folders; register; start; health expected version (30 s); commit versions.json"}
+                if ($op.op -eq 'install') {
+                    $mod=$Modules[$op.module]
+                    $line+="; port $($op.port); runtime $($op.runtimeRoot) (trusted folder chain; empty or runtime layout only; no overlap with another module; create missing folders with a fixed DACL); write runtime marker; apply runtime DACL before init"
+                    if ($mod.HasTenants) {$line+='; preserve tenants.json'}
+                    $line+="; pinned WinSW v2.12.0; trusted node.exe and its folders; register $($mod.ServiceId); start; health expected version (30 s); commit versions.json"
+                }
                 if ($op.op -eq 'upgrade') {$line+='; preserve port/memory/env; stop; switch XML; start; health; trusted node.exe from the service XML; on failure stop, restore previous XML, start and verify health as separate reported steps, delete the failed candidate only when recovery completed (otherwise keep and report it); commit current/previous in versions.json (no pruning if that write fails); keep current and previous'}
                 if ($op.op -eq 'adopt') {$line+='; legacy must run as LocalService; read legacy XML; retain runtime/port/memory/tenants; snapshot runtime and service folder permissions; normalise runtime ACLs to the standard policy; stop legacy (registration kept); register new id with the verified legacy wrapper; start; health; commit versions.json; then unregister legacy and back up then delete its wrapper files; on failure (commit included) remove the new service, restore the permissions, restart legacy only if it was running and verify /health'}
                 if ($op.op -eq 'rollback') {$line+='; switch to the committed previous version from versions.json; switch XML; restart; health; restore on failure'}
