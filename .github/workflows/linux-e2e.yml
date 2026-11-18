@@ -22,6 +22,8 @@ jobs:
           echo "$npm_config_prefix/bin" >> "$GITHUB_PATH"
           lda --version
       - name: Run, check health, stop, and check closed ports
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
