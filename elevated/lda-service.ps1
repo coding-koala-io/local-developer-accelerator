@@ -12,8 +12,8 @@ $utf8 = New-Object Text.UTF8Encoding($false)
 $OutputEncoding = $utf8
 # CATALOG-BEGIN (kept identical to src/catalog.js by tests)
 $Modules = @{
-    graph = @{ Product='LDA Local Graph'; CompatibleWith='Optimizely Graph'; Repo='coding-koala-io/lda-graph'; Port=8082; ServiceId='LdaGraph'; LegacyServiceId='OptimizelyGraphLocal'; RuntimeFolder='Graph'; MemoryMb=8192 }
-    assets = @{ Product='LDA Local Assets'; CompatibleWith='Optimizely CMS DAM picker'; Repo='coding-koala-io/lda-assets'; Port=8083; ServiceId='LdaAssets'; LegacyServiceId='OptimizelyDamLocal'; RuntimeFolder='Assets'; MemoryMb=0 }
+    graph = @{ Product='LDA Local Graph'; Description='LDA Local Graph: local development stand-in compatible with Optimizely Graph. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely Graph'; Repo='coding-koala-io/lda-graph'; Port=8082; ServiceId='LdaGraph'; LegacyServiceId='OptimizelyGraphLocal'; RuntimeFolder='Graph'; MemoryMb=8192 }
+    assets = @{ Product='LDA Local Assets'; Description='LDA Local Assets: local development stand-in compatible with Optimizely DAM. Development use only. Not affiliated with or endorsed by Optimizely. Built by Coding Koala.'; CompatibleWith='Optimizely CMS DAM picker'; Repo='coding-koala-io/lda-assets'; Port=8083; ServiceId='LdaAssets'; LegacyServiceId='OptimizelyDamLocal'; RuntimeFolder='Assets'; MemoryMb=0 }
 }
 # CATALOG-END
 $wrapperUrl = 'https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe'
@@ -613,6 +613,8 @@ function Install-Module($Op,[string]$Code,[switch]$Adopting) {
     $generated=Invoke-ModuleNode $Code 'xml' $options
     [xml]$x=$generated
     if ($x.service.id -ne $ctx.Id) {throw 'Module generated the wrong service id.'}
+    $x.service.description = $mod.Description
+    $generated = $x.OuterXml
     New-RuntimeRoot $ctx.Root
     Set-RestrictedDirectoryAcl $ctx.Root
     # The marker comes first, so an interrupted install leaves a folder a retry recognises as its own.

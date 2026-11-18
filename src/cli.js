@@ -1,9 +1,10 @@
 import {Command} from 'commander';
+import {brandingAllowed} from './branding.js';
 import {readFile} from 'node:fs/promises';
 import {createInterface} from 'node:readline/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {catalog, suite, version} from './catalog.js';
+import {catalog, version} from './catalog.js';
 import {createEngine} from './engine.js';
 import {ensureNotice, firstRunNotice} from './notice.js';
 import {renderStatus, renderList, statusExitCode, renderDoctor} from './output.js';
@@ -17,11 +18,12 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   const stdout = deps.stdout || process.stdout, stderr = deps.stderr || process.stderr, env = deps.env || process.env;
   const print = value => stdout.write(`${typeof value === 'string' ? value : JSON.stringify(value, null, 2)}\n`);
   const tty = !!stdout.isTTY && !!(deps.stdin || process.stdin).isTTY;
+  const showBranding = brandingAllowed({stdout, env, argv});
   const program = new Command(); let exitCode = 0;
   const prompt = deps.prompt || (async question => {const rl = createInterface({input: process.stdin, output: stderr}); try {return await rl.question(question);} finally {rl.close();}});
   const engine = deps.engine || createEngine({progress: value => {if (!program.opts().json) stderr.write(`${typeof value === 'string' ? value : `Downloading ${value.file}: ${value.received}${value.total ? '/' + value.total : ''} bytes`}\r${tty ? '' : '\n'}`);}, confirm: async (question, typed) => tty && !env.CI && !program.opts().nonInteractive && (typed ? await prompt(question) === typed : /^y$/i.test(await prompt(question)))});
   const opts = cmd => typeof cmd.optsWithGlobals === 'function' ? cmd.optsWithGlobals() : {...program.opts(), ...cmd};
-  program.name('lda').description(`${suite} — by Coding Koala. Development use only.`).addHelpText('after', '\nRun lda --version (or -V) on its own to print the CLI version.')
+  program.name('lda').description('Install, run and upgrade local development tools compatible with Optimizely CMS 13. Development use only.').addHelpText('after', '\nRun lda --version (or -V) on its own to print the CLI version.\nNot affiliated with or endorsed by Optimizely.\n' + (showBranding ? 'Free developer tools, built by Coding Koala: https://codingkoala.io\n' : '') + 'CLI licence: Apache License 2.0.')
     .option('--json', 'Output JSON').option('--yes', 'Confirm requested operations').option('--non-interactive', 'Never ask for input').option('--dry-run', 'Print elevated plan steps without service changes').option('--accept-notice', 'Accept the first-run notice for this major version').exitOverride();
   program.configureOutput({writeOut: s => stdout.write(s), writeErr: s => stderr.write(s)});
   program.hook('preAction', async (_, cmd) => {
@@ -36,7 +38,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     if (!result.ok) exitCode = 1;
   }
   program.action(async cmd => {
-    if (tty && !env.CI && !opts(cmd).nonInteractive && !opts(cmd).json) {const {launchTui} = await import('./tui/index.js'); await launchTui(engine);} else await showStatus(opts(cmd));
+    if (tty && !('CI' in env) && !opts(cmd).nonInteractive && !opts(cmd).json) {const launchTui = deps.launchTui || (await import('./tui/index.js')).launchTui; await launchTui(engine, {showBranding});} else await showStatus(opts(cmd));
   });
   program.command('status').description('Show installed services and health').option('--check-updates', 'Check release versions').action(async cmd => showStatus(opts(cmd)));
   program.command('list').description('List modules and latest releases').action(async cmd => {const rows = await engine.status({checkUpdates: true}); await engine.writeTray(rows); print(opts(cmd).json ? rows : renderList(rows, {tty, env}));});
@@ -61,8 +63,11 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   cfg.command('set <key> <value>').action(async (key, value) => {print(await engine.config.set(key, value)); await engine.writeTray(await engine.status());});
   program.command('tray').option('--at-login').option('--remove-at-login').option('--stop').action(async cmd => print(await (deps.tray || tray)(engine, opts(cmd))));
   program.command('hub').option('--port <number>', '', Number).option('--open').action(async cmd => {const flags = opts(cmd), port = flags.port ?? await engine.config.get('hubPort'); const hub = await (deps.startHub || startHub)({engine, port}); print(`Hub: ${hub.url}`); if (flags.open) {const {openUrl} = await import('./process.js'); await (deps.openUrl || openUrl)(hub.url);} await untilSignal(() => hub.close());});
-  program.command('about').action(() => print(`${firstRunNotice(engine.paths.data)}\n\nPublisher: Coding Koalas Pty Ltd (ACN 668 775 433)\nby Coding Koala · lda ${version}\nSee LEGAL-NOTICE.md and LICENSE.md.`));
-  for (const [name, file] of [['privacy', 'PRIVACY.md'], ['licence', 'LICENSE.md']]) program.command(name).action(async () => print(await readFile(new URL(`../${file}`, import.meta.url), 'utf8')));
+  program.command('about').action(() => print(`${firstRunNotice(engine.paths.data)}\n\nlda ${version} · Apache License 2.0\n${showBranding ? 'Built by Coding Koala: https://codingkoala.io\n' : ''}Source and issues: https://github.com/coding-koala-io/local-developer-accelerator\nCopyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). See LEGAL-NOTICE.md and LICENSE.md.`));
+  for (const [name, file] of [['privacy', 'PRIVACY.md'], ['licence', 'LICENSE.md']]) program.command(name).action(async () => {
+    const text = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
+    print(name === 'privacy' && !showBranding ? text.replace(/^Built by Coding Koala\.\r?\n/m, '') : text);
+  });
   program.command('self-update').description('Check npm, or the latest GitHub release while the CLI is not on npm; with --yes, update this CLI').action(async cmd => {
     const flags = opts(cmd), found = await findLatestCli({fetcher: deps.fetcher || fetch, userAgent: `lda-cli/${version}`});
     const from = found.source === 'npm' ? 'npm' : `GitHub release v${found.latest}`;
@@ -74,7 +79,9 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   });
   // The CLI version is printed only as the first argument; a program-wide --version would swallow
   // install/upgrade/adopt --version x.y.z.
-  if (['--version', '-V'].includes(argv[0])) {print(version); return 0;}
+  if (['--version', '-V'].includes(argv[0])) {
+    print(showBranding ? `lda ${version} · Apache 2.0 · Built by Coding Koala (codingkoala.io)` : version); return 0;
+  }
   try {await program.parseAsync(argv, {from: 'user'});} catch (e) {
     if (['commander.helpDisplayed', 'commander.version', 'commander.help'].includes(e.code)) return 0;
     const code = e.exitCode || 1; stderr.write(`${env.LDA_DEBUG === '1' ? e.stack : e.message}\n`); return code;

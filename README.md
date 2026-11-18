@@ -6,21 +6,18 @@
 > Provided "as is", without warranty of any kind. Its data folder holds copies of
 > your CMS content, including drafts; treat it as sensitive. No telemetry. See
 > PRIVACY.md and LEGAL-NOTICE.md.
-> Local Developer Accelerator (LDA), compatible with Optimizely CMS 13, is an independent project, not affiliated with, sponsored by or
-> endorsed by Optimizely. Optimizely® and the Optimizely product names are trademarks
+> Not affiliated with or endorsed by Optimizely. Optimizely® and the Optimizely product names are trademarks
 > or registered trademarks of Optimizely North America Inc. or its related entities.
 
 # Local Developer Accelerator
 
-Compatible with Optimizely CMS 13. Not affiliated with or endorsed by Optimizely.
+Made for CMS 13 sites. Not tested with CMS 12.
 
 Watch the 43-second demo: https://youtu.be/uIBKd3OSXro
 
-By Coding Koala · published by Coding Koalas Pty Ltd (ACN 668 775 433).
+Free and open source (Apache 2.0) · Built by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator) · No telemetry ([network calls](PRIVACY.md#network-connections))
 Node 24 or newer. Windows services, optional tray and a loopback-only hub.
 Tested on Windows, WSL and Linux (Ubuntu, in CI). macOS: not verified yet. Docker: see [docs/docker.md](docs/docker.md).
-Open source under the Apache License 2.0;
-still a development tool, not for production use.
 
 ## Install and quick start
 
@@ -40,8 +37,8 @@ The installers always take the latest release. They check for Node.js 24+ and np
 (they never install Node.js; on Windows use `winget install OpenJS.NodeJS.LTS` or
 https://nodejs.org), download the release tarball and `SHA256SUMS`, refuse to
 install on a checksum mismatch, run `npm i -g` on the verified file and show
-`lda --version`. Options are environment variables: `LDA_VERSION=v1.1.0` pins a
-release, `GITHUB_TOKEN` avoids the GitHub API rate limit.
+`lda --version`. Options are environment variables: `LDA_VERSION` optionally pins a
+release tag, `GITHUB_TOKEN` avoids the GitHub API rate limit.
 
 Or with npm directly (always the latest release, no checksum step):
 
@@ -77,6 +74,38 @@ not accept the notice. Non-TTY and CI runs print status rather than opening Ink.
 | --- | --- | --- | --- |
 | `graph` | Optimizely Graph | 8082 | LdaGraph |
 | `assets` (`dam` alias) | Optimizely CMS DAM picker | 8083 | LdaAssets |
+
+## Getting started from source
+
+Run the Coding Koala CLI without piping an installer into a shell.
+Use Windows PowerShell or a Linux/macOS terminal (macOS is not verified yet).
+On PowerShell, use `npm.cmd` for `npm` and `lda.cmd` for `lda` to avoid script policy blocks.
+
+1. Install Node.js **24 or newer** (`package.json` engines), npm and Git. Check: `node --version`, `npm --version`, `git --version`.
+   Linux also needs `bsdtar` to extract service ZIPs (`src/archive.js`). On Debian/Ubuntu, run `sudo apt-get install libarchive-tools`; verify with `bsdtar --version`.
+   On macOS, extraction uses `tar` from PATH; macOS not verified yet.
+2. Clone the source and enter its folder:
+   ```sh
+   git clone https://github.com/coding-koala-io/local-developer-accelerator
+   cd local-developer-accelerator
+   ```
+3. Install the locked dependencies: `npm ci` (`package-lock.json` is included).
+4. Run the CLI from the clone: `node bin/lda.js --help`.
+5. Optional: run `npm link` to make `lda` use this clone. Add npm's global bin folder to PATH for this terminal:
+   - PowerShell: `$env:Path += ";$(npm.cmd prefix -g)"`
+   - Linux/macOS: `export PATH="$(npm prefix -g)/bin:$PATH"`
+   Add that folder to your user PATH to keep it in new terminals.
+
+Use and maintain the clone (run commands from its folder):
+
+1. Windows: install Local Graph with `lda install graph`. Linux/macOS: use `lda run graph` in the foreground; Ctrl+C stops it. Read and accept the first-run notice when asked.
+   Without `npm link`, replace `lda` with `node bin/lda.js` in either command.
+2. Run the tests: `npm test`.
+3. Update the clone: `git pull`, then `npm ci`.
+4. Remove the CLI link, if used: `npm unlink -g @coding-koala-io/accelerator`. This keeps the clone and installed services/data; delete the clone folder separately if no longer needed.
+
+Windows service changes (including install, start/stop and removal) need administrator approval.
+Running the CLI, tests and foreground tools does not. Linking/unlinking needs write access to npm's global prefix; a protected prefix may need administrator/root rights.
 
 ## Commands
 
@@ -224,8 +253,6 @@ No telemetry or analytics. External connections are release/update requests to
 GitHub, optional WinSW download during install, and npm (or the GitHub release,
 while the CLI is not on npm) for self-update. See
 [Privacy](PRIVACY.md), [Legal notice](LEGAL-NOTICE.md), [Licence](LICENSE.md).
-Open source under the Apache License 2.0. Free to use, change and share. It is
-still a development tool: not for production use, and provided "as is".
 
 ## Threat model and known limits
 
@@ -266,3 +293,20 @@ Dependencies are pinned in package-lock.json. `npm test` uses fakes for UAC,
 service mutations and external requests. PowerShell tests run only parser and
 DryRun paths; loopback fixture servers test HTTP. No tests install services.
 See [Releasing](docs/RELEASING.md) and [Contributing](CONTRIBUTING.md).
+
+## Who builds this
+
+Proudly built and maintained by [Coding Koala](https://codingkoala.io/work/local-developer-accelerator), a software company in Sydney, Australia. The LDA CLI is free and open source under the Apache License 2.0: use it, change it and share it. Every released version stays under that licence, and the licence cannot be withdrawn. No account, no sign-up. Everything in this repository works on its own; nothing is held back for a paid version.
+
+- **Your data:** it runs on your machine and stores content there. It sends nothing to Coding Koala. Background update checks are off by default; enable them with `lda config set checkUpdates true`. Commands that look up releases, installs and upgrades contact GitHub; `lda self-update` also checks npm. Every call is listed in [PRIVACY.md](PRIVACY.md#network-connections).
+- **Your Optimizely agreement:** LDA contains no Optimizely code ([CLEAN-ROOM.md](CLEAN-ROOM.md)) and is not designed to replace your Optimizely subscription for any live site. Before use, check your agreement's terms on development use, redirection, competing products and reverse engineering ([LEGAL-NOTICE.md](LEGAL-NOTICE.md)).
+- **Maintenance:** fixes ship as new releases ([CHANGELOG.md](CHANGELOG.md)); only the latest release gets fixes. If this repository ever goes away, the licence lets you keep, fork and run any released version. Bugs and ideas: [GitHub issues](https://github.com/coding-koala-io/local-developer-accelerator/issues).
+- **Security:** security@codingkoala.io. We aim to acknowledge reports within 2 business days ([SECURITY.md](SECURITY.md)).
+
+## Licence
+
+Apache License 2.0; see [LICENSE.md](LICENSE.md) and [NOTICE](NOTICE). A development tool: not for production use, provided "as is".
+
+Copyright 2026 Coding Koalas Pty Ltd (ACN 668 775 433). [Legal notice](LEGAL-NOTICE.md) · [Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Rights-holder contact](TAKEDOWN-AND-CONTACT.md).
+
+Not affiliated with or endorsed by Optimizely. Optimizely® is a trademark of Optimizely North America Inc.

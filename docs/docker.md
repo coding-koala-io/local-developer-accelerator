@@ -1,7 +1,6 @@
 # Docker
 
-Development and research only; keep this on your own computer. Not affiliated
-with or endorsed by Optimizely. Read `LEGAL-NOTICE.md` (or `lda about`) first:
+Development and research only; keep this on your own computer. Not affiliated with or endorsed by Optimizely. Read `LEGAL-NOTICE.md` (or `lda about`) first:
 Compose sets `LDA_ACCEPT_NOTICE=1` to accept that notice for automation.
 
 1. From this repository, with Docker and Compose installed, run:

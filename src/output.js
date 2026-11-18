@@ -14,7 +14,7 @@ export function renderStatus(rows, {tty = !!process.stdout.isTTY, env = process.
     table.push([color(`${dot} ${r.product}`), r.state, r.port || '-', `${r.version || '-'}${r.update ? useUnicode ? ' ↑' : ' (update)' : ''}`, h, rich ? links(url, url, {fallback: () => url}) : url]);
   }
   const updates = rows.filter(r => r.update).length;
-  const result = [`${suite} ${useUnicode ? '·' : '-'} development use only    lda ${version}`, '', table.toString(), ...(updates ? [`${useUnicode ? '↑' : '(update)'} ${updates} updates — run lda upgrade`] : []), ...(rows.some(r => r.legacy) ? ['legacy install — run lda adopt'] : []), ...rows.filter(r => r.updateError).map(r => `${r.module}: update check unavailable: ${r.updateError}`)].join('\n');
+  const result = [`${suite} ${useUnicode ? '·' : '-'} development use only    lda ${version}`, 'Not affiliated with or endorsed by Optimizely.', '', table.toString(), ...(updates ? [`${useUnicode ? '↑' : '(update)'} ${updates} updates — run lda upgrade`] : []), ...(rows.some(r => r.legacy) ? ['legacy install — run lda adopt'] : []), ...rows.filter(r => r.updateError).map(r => `${r.module}: update check unavailable: ${r.updateError}`)].join('\n');
   return useUnicode ? result : result.replace(/[—–]/g, '-');
 }
 export function renderList(rows, options) {

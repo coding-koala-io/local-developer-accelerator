@@ -3,9 +3,10 @@
 Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 (the `lda` CLI), by Coding Koala. Last updated: 2026-10-16.
 
 ## Who publishes this software
-This software is published by Coding Koalas Pty Ltd (ACN 668 775 433), Sydney, New South Wales, Australia ("we", "us"). Contact: legal@codingkoala.io.
+This software is published by Coding Koala, Sydney, New South Wales, Australia ("we", "us"). Contact: legal@codingkoala.io.
 
 ## Not affiliated with Optimizely
+Not affiliated with or endorsed by Optimizely.
 This project is independent. It is **not** made, sponsored, endorsed, reviewed, certified or supported by Optimizely or any company in the Optimizely group.
 "Optimizely", "Optimizely Graph", "Opti ID", "Optimizely Data Platform", "Feature Experimentation", "Episerver" and related names are trademarks of their owner. We use them only to describe what this software is compatible with. Their use does not imply any relationship or approval.
 This software contains no Optimizely source code, binaries, user interface, logos or documentation.

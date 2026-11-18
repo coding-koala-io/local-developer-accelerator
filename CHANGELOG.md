@@ -1,5 +1,7 @@
 # Changelog
 
+Not affiliated with or endorsed by Optimizely.
+
 ## [Unreleased]
 
 ## [1.3.0] - 2026-11-06
@@ -27,7 +29,7 @@
 ### Changed
 - Licence changed to Apache 2.0; earlier versions stay under the Business Source License 1.1. Versions up to and including 1.1.0 keep that licence. LICENSE.md is now the standard Apache License 2.0 text, and a NOTICE file ships with every package.
 - Product name is now "Local Developer Accelerator (LDA), compatible with Optimizely CMS 13" in the documents, installers, first-run notice, hub and terminal output.
-- Legal notice: production wording now reads "Not designed or tested for production use. Provided 'as is', without warranties, under sections 7 and 8 of the Apache License 2.0. Nothing here limits rights you have under law that cannot be excluded."; the local Opal component is no longer mentioned.
+- Legal notice: production wording now reads "Not designed or tested for production use. Provided 'as is', without warranties, under sections 7 and 8 of the Apache License 2.0. Nothing here limits rights you have under law that cannot be excluded.".
 - README: title and licence lines updated for Apache 2.0.
 
 ## [1.1.0] - 2026-10-16

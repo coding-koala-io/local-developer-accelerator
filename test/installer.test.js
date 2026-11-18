@@ -43,7 +43,7 @@ test('install.ps1 is safe to pipe to iex and contains the required checks', asyn
   assert.ok(s.trimStart().replace(/^(#.*\r?\n)+/, '').startsWith('& {'), 'runs in its own scope');
   for (const text of ['SecurityProtocolType]::Tls12', 'Get-FileHash -Algorithm SHA256', 'Checksum mismatch', "-lt 24", 'winget install OpenJS.NodeJS.LTS', 'https://nodejs.org', 'npm.cmd',
     '/releases/latest', '/releases/tags/', '$env:LDA_VERSION', '$env:GITHUB_TOKEN', 'SHA256SUMS', '--version', 'lda install graph assets', 'lda adopt', 'lda tray',
-    'Not designed or tested for production use.', 'No telemetry', 'not affiliated'])
+    'Not designed or tested for production use.', 'No telemetry', 'Not affiliated with or endorsed by Optimizely.', 'Free developer tools, built by Coding Koala: https://codingkoala.io', 'CLI licence: Apache License 2.0.'])
     assert.ok(s.includes(text), text);
   assert.ok(!/RunAs|winget install(?! OpenJS\.NodeJS\.LTS)/.test(s), 'never elevates and never installs Node.js itself');
   assert.ok(s.indexOf('Checksum mismatch') < s.indexOf(' i -g '), 'verifies before npm install');
@@ -52,7 +52,7 @@ test('install.ps1 is safe to pipe to iex and contains the required checks', asyn
 test('install.sh contains the required checks', async () => {
   const s = await readFile(sh, 'utf8');
   for (const text of ['set -eu', 'sha256sum', 'shasum -a 256', 'Checksum mismatch', '-ge 24', 'https://nodejs.org', '/releases/latest', '/releases/tags/', 'LDA_VERSION', 'GITHUB_TOKEN',
-    'SHA256SUMS', '--version', 'lda install graph assets', 'lda adopt', 'Not designed or tested for production use.', 'No telemetry', 'not affiliated'])
+    'SHA256SUMS', '--version', 'lda install graph assets', 'lda adopt', 'Not designed or tested for production use.', 'No telemetry', 'Not affiliated with or endorsed by Optimizely.', 'Free developer tools, built by Coding Koala: https://codingkoala.io', 'CLI licence: Apache License 2.0.'])
     assert.ok(s.includes(text), text);
   assert.ok(!/\bsudo npm\b|apt-get install|brew install node &&/.test(s), 'never installs Node.js or uses sudo itself');
   assert.ok(s.indexOf('Checksum mismatch') < s.indexOf('npm i -g'), 'verifies before npm install');
@@ -73,6 +73,60 @@ test('README leads with the one-liners and the stable npm URL', async () => {
   const s = await readFile(path.join(root, 'README.md'), 'utf8'), install = s.slice(s.indexOf('## Install'));
   const a = install.indexOf('releases/latest/download/install.ps1 | iex'), b = install.indexOf('releases/latest/download/install.sh | sh'), c = install.indexOf(`npm i -g ${stableTarballUrl}`), d = install.indexOf('npm i -g @coding-koala-io/accelerator');
   assert.ok(a > 0 && a < b && b < c && c < d, 'order: Windows, macOS/Linux, stable npm URL, npm package');
+});
+
+// Run the actual render blocks; substitute only the terminal probe to cover both states.
+const brandingScenarios = [
+  {tty: true, env: {}, branded: true},
+  {tty: false, env: {}},
+  {tty: true, env: {CI: '1'}},
+  {tty: true, env: {CI: ''}},
+  {tty: true, env: {LDA_QUIET: '1'}},
+  {tty: true, env: {LDA_QUIET: '0'}, branded: true}
+];
+function brandingEnv(extra) {
+  const env = {...process.env};
+  for (const key of Object.keys(env)) if (/^(CI|LDA_QUIET)$/i.test(key)) delete env[key];
+  return childEnv({...env, ...extra});
+}
+function checkInstallerBranding(stdout, scenario) {
+  const screens = stdout.split('__LDA_CLOSING__');
+  assert.equal(screens.length, 2);
+  for (const screen of screens) assert.equal((screen.match(/built by Coding Koala/gi) || []).length, scenario.branded ? 1 : 0);
+  for (const text of ['Local Developer Accelerator (LDA), compatible with Optimizely CMS 13',
+    'Development and research use only. Not designed or tested for production use.',
+    '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.',
+    '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.',
+    'CLI licence: Apache License 2.0.', 'Bugs and ideas: https://github.com/coding-koala-io/local-developer-accelerator/issues']) {
+    assert.ok(stdout.includes(text), text);
+  }
+  assert.equal((stdout.match(/Not affiliated with or endorsed by Optimizely\./g) || []).length, 1);
+}
+
+test('install.sh gates both attributions on terminal, CI presence and LDA_QUIET', {skip: !shAvailable && 'sh not available'}, async () => {
+  const s = await readFile(sh, 'utf8');
+  const opening = s.slice(s.indexOf('branding_allowed()'), s.indexOf('# 1. Tools:'));
+  const closing = s.slice(s.lastIndexOf('if branding_allowed; then'));
+  assert.ok(opening.includes('[ -t 1 ]'));
+  for (const scenario of brandingScenarios) {
+    const code = 'set -eu\n' + opening.replace('[ -t 1 ]', scenario.tty ? 'true' : 'false')
+      + "printf '\\n__LDA_CLOSING__\\n'\n" + closing;
+    const {stdout} = await exec('sh', ['-c', code], {env: brandingEnv(scenario.env)});
+    checkInstallerBranding(stdout, scenario);
+  }
+});
+
+test('install.ps1 gates both attributions on terminal, CI presence and LDA_QUIET', {skip: process.platform !== 'win32'}, async () => {
+  const s = await readFile(ps1, 'utf8');
+  const opening = s.slice(s.indexOf('    $showBranding ='), s.indexOf('    # 1. Node.js'));
+  const closing = s.slice(s.lastIndexOf('    if ($showBranding)'), s.indexOf('  } catch {', s.lastIndexOf('    if ($showBranding)')));
+  assert.ok(opening.includes('[Console]::IsOutputRedirected'));
+  for (const scenario of brandingScenarios) {
+    const code = 'Set-StrictMode -Version 2\n' + opening.replace('[Console]::IsOutputRedirected', scenario.tty ? '$false' : '$true')
+      + "Write-Host '__LDA_CLOSING__'\n" + closing;
+    const {stdout} = await winPs(['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(code, 'utf16le').toString('base64')], {env: brandingEnv(scenario.env)});
+    checkInstallerBranding(stdout, scenario);
+  }
 });
 
 // ---------- end-to-end against a fake releases API ----------
@@ -125,6 +179,7 @@ test('install.ps1 end to end: fake API, real tarball, temporary npm prefix', {sk
   assert.match(out, /Not designed or tested for production use/);
   assert.match(out, /SHA-256 verified/, out);
   assert.ok(out.includes(`Installed lda ${pkg.version}.`), out);
+  assert.doesNotMatch(out, /built by Coding Koala/i, 'redirected installer output omits both attributions');
   assert.match(out, /lda install graph assets/);
   const shim = path.join(f.dir, 'prefix', 'lda.cmd');
   assert.ok(existsSync(shim), 'lda installed into the temporary prefix only');
@@ -163,6 +218,7 @@ test('install.sh end to end: fake API, real tarball, temporary npm prefix', {ski
   catch (e) {out = `${e.stdout}${e.stderr}${e.message}`;}
   assert.match(out, /SHA-256 verified/, out);
   assert.ok(out.includes(`Installed lda ${pkg.version}.`), out);
+  assert.doesNotMatch(out, /built by Coding Koala/i, 'redirected installer output omits both attributions');
 });
 
 test('install.sh installs a local checkout or tarball without contacting the release API', {skip: process.platform === 'win32' || !shAvailable, timeout: 300000}, async t => {
@@ -193,5 +249,6 @@ test('install.ps1 end to end in PowerShell 7 (latest release, no pin)', {skip: !
   const out = await runPs1(api.base, baseEnv(f.dir, api.base), 'pwsh');
   assert.match(out, /SHA-256 verified/, out);
   assert.ok(out.includes(`Installed lda ${pkg.version}.`), out);
+  assert.doesNotMatch(out, /built by Coding Koala/i, 'redirected installer output omits both attributions');
   assert.ok(api.requests.some(r => r.url === '/repos/x/releases/latest' && !r.auth), 'latest release, no token when GITHUB_TOKEN is unset');
 });

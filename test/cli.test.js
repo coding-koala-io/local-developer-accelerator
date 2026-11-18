@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,writeFile,readdir} from 'node:fs/promises';
 import {main} from '../src/cli.js';
+import {version} from '../src/catalog.js';
 import {ensureNotice} from '../src/notice.js';
 import {createElevator,CancelledError} from '../src/elevate.js';
 import {tray} from '../src/tray.js';
@@ -38,3 +39,87 @@ test('self-update uses fake registry and --dry-run never executes npm',async t=>
 test('tray startup/login/stop use injected scripts without UAC or service commands',async t=>{const f=await fixture(t),{engine}=fakeEngine(f),scripts=[];const runner=async s=>scripts.push(s);await tray(engine,{atLogin:true,runner});assert.ok(scripts.some(s=>s.includes('Set-ItemProperty')));assert.ok(scripts.some(s=>s.includes('Start-Process -FilePath $exe -WindowStyle Hidden')));assert.ok(scripts.every(s=>!s.includes('RunAs')));await tray(engine,{stop:true,runner});assert.match(scripts.at(-1),/EventWaitHandle/);});
 test('CLI elevator dry-run invokes helper -DryRun with no RunAs',async t=>{const f=await fixture(t),scripts=[];const elevator=createElevator({paths:f.paths,platform:'win32',runner:async script=>{scripts.push(script);return'DRY RUN: start graph';}});const result=await elevator({version:1,operations:[{op:'start',module:'graph'}]},{dryRun:true});assert.equal(result.dryRun,true);assert.ok(scripts.some(s=>s.endsWith('-DryRun')));assert.ok(scripts.every(s=>!s.includes('-Verb RunAs')));assert.deepEqual(await readdir(f.paths.plans),[]);});
 test('list output shows available latest as well as installed version',async t=>{const r=await cli(t,['list','--accept-notice']);assert.equal(r.code,0,r.stderr.text);assert.match(r.stdout.text,/latest: 1.2.0/);assert.match(r.stdout.text,/installed: -/);});
+
+test('version branding depends on stdout and keeps automation output parseable', async t => {
+  for (const flag of ['--version', '-V']) {
+    for (const scenario of [
+      {isTTY: true, env: {}, flags: [], branded: true},
+      {isTTY: false, env: {}, flags: []},
+      {isTTY: true, env: {CI: '1'}, flags: []},
+      {isTTY: true, env: {CI: ''}, flags: []},
+      {isTTY: true, env: {}, flags: ['--json']},
+      {isTTY: true, env: {}, flags: ['--non-interactive']},
+      {isTTY: true, env: {LDA_QUIET: '1'}, flags: []}
+    ]) {
+      const stdout = {...output(), isTTY: scenario.isTTY};
+      const r = await cli(t, [flag, ...scenario.flags], {stdout, stdin: {isTTY: false}, env: scenario.env});
+      assert.equal(r.code, 0, r.stderr.text);
+      assert.equal(stdout.text, scenario.branded ? `lda ${version} · Apache 2.0 · Built by Coding Koala (codingkoala.io)\n` : `${version}\n`);
+      assert.equal(r.stderr.text, '');
+      assert.equal((await r.config.read()).noticeAcceptedMajor, undefined);
+    }
+  }
+});
+
+test('help and About share version branding suppression and retain one disclaimer', async t => {
+  for (const command of [['--help'], ['-h'], ['about']]) {
+    for (const scenario of [
+      {isTTY: true, env: {}, flags: [], branded: true},
+      {isTTY: false, env: {}, flags: []},
+      {isTTY: true, env: {CI: '1'}, flags: []},
+      {isTTY: true, env: {CI: ''}, flags: []},
+      {isTTY: true, env: {}, flags: ['--json']},
+      {isTTY: true, env: {}, flags: ['--non-interactive']},
+      {isTTY: true, env: {LDA_QUIET: '1'}, flags: []}
+    ]) {
+      const stdout = {...output(), isTTY: scenario.isTTY};
+      const r = await cli(t, [...command, ...scenario.flags], {stdout, stdin: {isTTY: false}, env: scenario.env});
+      assert.equal(r.code, 0, r.stderr.text);
+      assert.equal((stdout.text.match(/built by Coding Koala/gi) || []).length, scenario.branded ? 1 : 0);
+      assert.equal((stdout.text.match(/Not affiliated with or endorsed by Optimizely\./g) || []).length, 1);
+      assert.equal((await r.config.read()).noticeAcceptedMajor, undefined);
+    }
+  }
+});
+
+test('interactive startup receives the same gate and automation never launches it', async t => {
+  for (const scenario of [
+    {isTTY: true, env: {}, flags: [], launched: true, branded: true},
+    {isTTY: true, env: {LDA_QUIET: '1'}, flags: [], launched: true, branded: false},
+    {isTTY: false, env: {}, flags: []},
+    {isTTY: true, env: {CI: '1'}, flags: []},
+    {isTTY: true, env: {CI: ''}, flags: []},
+    {isTTY: true, env: {}, flags: ['--json']},
+    {isTTY: true, env: {}, flags: ['--non-interactive']}
+  ]) {
+    let launches = 0;
+    const stdout = {...output(), isTTY: scenario.isTTY};
+    const r = await cli(t, ['--accept-notice', ...scenario.flags], {stdout, stdin: {isTTY: true}, env: scenario.env,
+      launchTui: async (engine, {showBranding}) => {launches++; assert.equal(showBranding, scenario.branded);}});
+    assert.equal(r.code, 0, r.stderr.text);
+    assert.equal(launches, scenario.launched ? 1 : 0);
+    assert.ok(!stdout.text.includes('Coding Koala'));
+  }
+});
+
+
+test('privacy shares the branding gate and preserves all privacy content and the disclaimer', async t => {
+  const text = await readFile(new URL('../PRIVACY.md', import.meta.url), 'utf8');
+  for (const scenario of [
+    {isTTY: true, env: {}, flags: [], branded: true},
+    {isTTY: false, env: {}, flags: []},
+    {isTTY: true, env: {CI: '1'}, flags: []},
+    {isTTY: true, env: {CI: ''}, flags: []},
+    {isTTY: true, env: {}, flags: ['--json']},
+    {isTTY: true, env: {}, flags: ['--non-interactive']},
+    {isTTY: true, env: {LDA_QUIET: '1'}, flags: []}
+  ]) {
+    const stdout = {...output(), isTTY: scenario.isTTY};
+    const r = await cli(t, ['privacy', ...scenario.flags], {stdout, stdin: {isTTY: false}, env: scenario.env});
+    assert.equal(r.code, 0, r.stderr.text);
+    assert.equal(stdout.text, (scenario.branded ? text : text.replace(/^Built by Coding Koala\.\r?\n/m, '')) + '\n');
+    assert.equal((stdout.text.match(/built by Coding Koala/gi) || []).length, scenario.branded ? 1 : 0);
+    assert.equal((stdout.text.match(/Not affiliated with or endorsed by Optimizely\./g) || []).length, 1);
+    assert.equal((await r.config.read()).noticeAcceptedMajor, undefined);
+  }
+});

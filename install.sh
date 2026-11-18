@@ -20,11 +20,17 @@ fail() {
   exit 1
 }
 
-printf '\nLocal Developer Accelerator (LDA), compatible with Optimizely CMS 13 - by Coding Koala\n'
+branding_allowed() {
+  [ -t 1 ] && [ "${CI+x}" != x ] && [ "${LDA_QUIET:-}" != 1 ]
+}
+
+printf '\nLocal Developer Accelerator (LDA), compatible with Optimizely CMS 13'
+if branding_allowed; then printf ' - built by Coding Koala'; fi
+printf '\n'
 printf 'Development and research use only. Not designed or tested for production use.\n'
 printf -- '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.\n'
 printf -- '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.\n'
-printf -- '- Independent project; not affiliated with, sponsored by or endorsed by Optimizely.\n\n'
+printf -- '- Not affiliated with or endorsed by Optimizely.\n\n'
 
 # 1. Tools: curl, Node.js 24+, npm, a SHA-256 tool. Node.js is never installed automatically.
 NODE_HELP="Install Node.js 24 or newer (https://nodejs.org, or your package manager, for example: brew install node), open a new terminal and run this command again."
@@ -132,3 +138,8 @@ printf '  lda install graph assets   Windows only: install LDA Local Graph and L
 printf '  lda adopt                  Windows only: take over an older service install without moving its data\n'
 printf '  lda tray                   Windows only: start the tray icon\n'
 printf '  lda self-update            update this CLI later\n'
+if branding_allowed; then
+  printf '\nFree developer tools, built by Coding Koala: https://codingkoala.io\n'
+fi
+printf 'CLI licence: Apache License 2.0.\n'
+printf 'Bugs and ideas: https://github.com/coding-koala-io/local-developer-accelerator/issues\n'

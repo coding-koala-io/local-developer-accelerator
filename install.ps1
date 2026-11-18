@@ -26,12 +26,15 @@
       [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     }
 
+    $showBranding = -not [Console]::IsOutputRedirected -and -not (Test-Path Env:CI) -and $env:LDA_QUIET -ne '1'
+    $title = 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13'
+    if ($showBranding) { $title += ' - built by Coding Koala' }
     Write-Host ''
-    Write-Host 'Local Developer Accelerator (LDA), compatible with Optimizely CMS 13 - by Coding Koala' -ForegroundColor Cyan
+    Write-Host $title -ForegroundColor Cyan
     Write-Host 'Development and research use only. Not designed or tested for production use.' -ForegroundColor Yellow
     Write-Host '- Local stand-ins for Optimizely cloud services; behaviour differs from the real services.'
     Write-Host '- Runs on this machine only. No telemetry. Provided as is, without warranty. Licence: Apache 2.0.'
-    Write-Host '- Independent project; not affiliated with, sponsored by or endorsed by Optimizely.'
+    Write-Host '- Not affiliated with or endorsed by Optimizely.'
     Write-Host ''
 
     # 1. Node.js 24+ and npm (never installed automatically).
@@ -118,6 +121,10 @@
     Write-Host '  lda adopt                  take over an older install without moving its data'
     Write-Host '  lda tray                   start the tray icon'
     Write-Host '  lda self-update            update this CLI later'
+    Write-Host ''
+    if ($showBranding) { Write-Host 'Free developer tools, built by Coding Koala: https://codingkoala.io' }
+    Write-Host 'CLI licence: Apache License 2.0.'
+    Write-Host 'Bugs and ideas: https://github.com/coding-koala-io/local-developer-accelerator/issues'
   } catch {
     Write-Host ''
     if ($_.Exception.Data['lda']) { Write-Host "Install failed: $($_.Exception.Message)" -ForegroundColor Red }

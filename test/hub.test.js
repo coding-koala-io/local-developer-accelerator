@@ -6,7 +6,7 @@ import {fixture,fakeEngine} from './helpers.js';
 async function hubFixture(t){const f=await fixture(t),fake=fakeEngine(f);const hub=await startHub({engine:fake.engine,port:0,doctor:async()=>[{name:'Node',ok:true,message:'fake',fix:'none'}]});t.after(()=>hub.close());return{...hub,...fake};}
 test('hub binds loopback on port 0 and server-renders banner, cards, legal links and controls',async t=>{
   const hub=await hubFixture(t),response=await fetch(hub.url),html=await response.text();assert.equal(hub.server.address().address,'127.0.0.1');
-  for(const text of ['Development and research use only','not affiliated','LDA Local Graph','LDA Local Assets','Compatible with Optimizely','Check for updates now','Run doctor','No telemetry','/privacy','/licence','/legal','Logs'])assert.ok(html.includes(text),text);
+  for(const text of ['Development and research use only','Not affiliated with or endorsed by Optimizely.','LDA Local Graph','LDA Local Assets','Compatible with Optimizely','Check for updates now','Run doctor','No telemetry','/privacy','/licence','/legal','Logs'])assert.ok(html.includes(text),text);
   assert.match(response.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.equal(response.headers.get('cache-control'),'no-store');
 });
 test('hub status JSON has two catalogue modules and dashboard URLs',async t=>{const hub=await hubFixture(t),rows=await(await fetch(hub.url+'api/status')).json();assert.equal(rows.length,2);assert.equal(rows[0].module,'graph');assert.equal(rows[1].state,'not installed');assert.match(rows[0].dashboard,/localhost:8082/);});
@@ -22,3 +22,18 @@ test('valid local CSRF POST calls same engine once; doctor uses injected checks'
   const d=await(await fetch(hub.url+'api/doctor',{method:'POST',headers,body:'{}'})).json();assert.equal(d.checks[0].name,'Node');
 });
 test('hub rejects arbitrary actions, module keys and malformed JSON',async t=>{const hub=await hubFixture(t),html=await(await fetch(hub.url)).text(),headers={'Content-Type':'application/json','X-LDA-CSRF':html.match(/const csrf="([a-f\d]+)"/)[1],Origin:hub.url.slice(0,-1)};for(const [action,body]of[['execute','{}'],['install','{"module":"../escape"}'],['install','{bad']]){const r=await fetch(hub.url+'api/'+action,{method:'POST',headers,body});assert.equal(r.status,400);}assert.equal(hub.calls.length,0);});
+
+test('hub About has product, licence, copyright and trademark details', async t => {
+  const hub = await hubFixture(t), response = await fetch(hub.url + 'about'), text = await response.text();
+  assert.equal(response.status, 200);
+  for (const row of ['Product: LDA CLI', 'Version:', 'Suite: Local Developer Accelerator (LDA)',
+    'Compatible with: Optimizely CMS 13', 'Built by: Coding Koala (https://codingkoala.io)',
+    'Source: https://github.com/coding-koala-io/local-developer-accelerator',
+    'Licence: Apache License 2.0', 'Copyright: 2026 Coding Koalas Pty Ltd (ACN 668 775 433).',
+    'Not affiliated with or endorsed by Optimizely.', 'Optimizely® is a trademark of Optimizely North America Inc.',
+    'Provided as is, without warranty.']) assert.ok(text.includes(row), row);
+  const html = await (await fetch(hub.url)).text();
+  assert.match(html, /Built by <a href="https:\/\/codingkoala\.io" target="_blank" rel="noopener noreferrer">Coding Koala<\/a>/);
+  assert.ok(!html.includes('Optimizely® is a trademark'));
+  assert.equal((await fetch(hub.url + 'legal')).status, 200);
+});

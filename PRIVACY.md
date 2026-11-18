@@ -2,7 +2,7 @@
 
 Not affiliated with or endorsed by Optimizely. Optimizely is a trade mark of its owner.
 
-Published by Coding Koalas Pty Ltd (ACN 668 775 433), by Coding Koala.
+Built by Coding Koala.
 Last updated: 2026-10-16.
 
 No telemetry, analytics, crash reporting or tracking. Coding Koala receives no
@@ -11,7 +11,7 @@ releases, cached update lookups and temporary elevation plans/results locally.
 Plans contain paths and service options, not GitHub tokens. Plans/results are
 removed after each elevation attempt and their folder has a user-only DACL.
 
-## External connections
+## Network connections
 
 | Trigger | Destination | Information sent |
 | --- | --- | --- |
