@@ -12,13 +12,14 @@ No publish occurs during normal CLI tests or local development.
    Hotfixes use hotfix/* and back-merge to develop.
 5. The v* workflow checks that tag equals package version, tests both platforms,
    then runs `npm pack` and creates a GitHub Release using the matching CHANGELOG
-   section, with `coding-koala-io-accelerator-X.Y.Z.tgz` and a `SHA256SUMS` for it
-   attached. Users install that tarball with
-   `npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/download/vX.Y.Z/coding-koala-io-accelerator-X.Y.Z.tgz`
-   (update the version in README.md and the module READMEs). npm publishing
-   occurs only if repository variable NPM_PUBLISH is exactly `true`.
-   `lda self-update` uses npm when the package exists there and otherwise the
-   latest GitHub release tarball, so keep the tarball asset name unchanged.
+   section, with `coding-koala-io-accelerator-X.Y.Z.tgz`,
+   `coding-koala-io-accelerator.tgz`, `install.ps1`, `install.sh` and `SHA256SUMS`
+   attached. Users install the latest release with
+   `npm i -g https://github.com/coding-koala-io/local-developer-accelerator/releases/latest/download/coding-koala-io-accelerator.tgz`.
+   Publishing to npm occurs only if repository variable NPM_PUBLISH is exactly
+   `true`. `lda self-update` uses npm when the package exists there and otherwise
+   the latest GitHub release tarball, so keep the unversioned tarball asset name
+   unchanged for both the install command above and `lda self-update`.
 
 Configure npm trusted publishing for coding-koala-io/local-developer-accelerator
 and workflow release.yml. The publish job uses no GitHub environment, so leave the
