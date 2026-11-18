@@ -4,6 +4,21 @@ Not affiliated with or endorsed by Optimizely.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-18
+
+### Added
+- The README explains how to run the CLI from source and who maintains it.
+- The hub's About page shows the CLI version, CMS 13 compatibility, source, licence, copyright and warranty details.
+- The installers show the CLI licence and where to report bugs or suggest ideas.
+
+### Changed
+- The CLI credits Coding Koala in terminal output for `--version`, help, About, privacy and startup. The installers show the credit at the start and end. Both skip the credit when output is redirected, in CI or with `LDA_QUIET=1`. The CLI also skips it with `--json` or `--non-interactive` and prints just the version number for quiet or scripted version checks.
+- When `CI` is set, even to an empty value, startup prints status instead of opening the interactive screen.
+- The hub links to Coding Koala and shows the CLI licence in its footer. The tray's About notice credits Coding Koala.
+- Windows service descriptions for Local Graph and Local Assets now say they are for local development and built by Coding Koala.
+- The CLI status and help show the Optimizely non-affiliation notice. The documentation and package listing use the updated Coding Koala credit and disclaimer. The package listing links to the issue tracker.
+- The README says the CLI is made for CMS 13 and has not been tested with CMS 12. It also points to the licence and the list of network connections.
+
 ## [1.3.0] - 2026-11-06
 
 ### Added
