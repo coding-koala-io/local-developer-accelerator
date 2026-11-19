@@ -58,6 +58,8 @@ jobs:
       - name: Build this checkout
         run: docker compose build
       - name: Start, check health and loopback publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail

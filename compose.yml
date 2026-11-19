@@ -7,6 +7,7 @@ services:
     environment:
       # Read `lda about` (or the repository LEGAL-NOTICE.md) before running.
       LDA_ACCEPT_NOTICE: "1"
+      GH_TOKEN:
     volumes:
       - lda-data:/home/node/.local/share
     stop_grace_period: 30s

@@ -11,6 +11,7 @@ Compose sets `LDA_ACCEPT_NOTICE=1` to accept that notice for automation.
 
 2. Open Graph at <http://localhost:8082/> and Assets at <http://localhost:8083/>.
    Initial startup downloads and verifies the service releases from GitHub.
+   If `GH_TOKEN` is set on the host, the CLI uses it for release downloads.
    Both services must answer `/health`; Compose reports the image healthcheck.
 
 3. For a CMS 13 site running on this host, open the Graph tenant and copy its
